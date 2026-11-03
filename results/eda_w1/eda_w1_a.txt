@@ -1,0 +1,109 @@
+== 0. 子集總覽（修正版，含 47/311 的所有列）== 42995
+order_id 重複： 0 | 完全重複列： 0
+original 取值：
+ original        0      1
+skill_id                
+311          6942  17311
+47              2  18737
+47_63_70_77     0      3
+
+== 0b. 重現設計修訂第 2 節（單一技能、original==1）==
+          students   rows  schools  classes  teachers  assign  seq_ids  problems  wrong
+skill_id                                                                               
+311            961  17311       27       62        45     226       34       680  0.354
+47            1225  18737       27       63        42     165       36       486  0.362
+合計列數 36048 | 兩技能都做的學生： 443 | 全部學生 1743
+
+== 1. correct 的定義：與 attempt_count / hint_count / first_action 的關係（目標列）==
+correct x attempt_count:
+ correct           0      1
+attempt_count             
+0               642     17
+1              4550  23071
+2              3729     34
+3              1634      1
+4              2365      5
+correct x (hint_count>0):
+ correct        0      1
+hint_count             
+False       5935  23128
+True        6985      0
+
+== 2. first_action（目標列，兩技能）==
+first_action
+0    31913
+1     3514
+2      621
+first_action x correct:
+ correct          0      1
+first_action             
+0             8785  23128
+1             3514      0
+2              621      0
+first_action x hint_count>0:
+ hint_count    False  True 
+first_action              
+0             28442   3471
+1                 0   3514
+2               621      0
+first_action x attempt_count(clip 4):
+ attempt_count    0      1     2     3     4
+first_action                               
+0               17  24897  3387  1473  2139
+1               26   2720   376   162   230
+2              616      4     0     0     1
+first_action x bottom_hint:
+ bottom_hint    -1.0   0.0   1.0
+first_action                   
+0             28442  1214  2257
+1                 0  1191  2323
+2               621     0     0
+hint_count>0 但 first_action==0 的列： 3471
+hint_total 分布（前幾名）：
+ hint_total
+3    20603
+5     5282
+0     4540
+2     4178
+4     1399
+1       28
+hint_count 分布：
+ hint_count
+0    29063
+1      782
+2     1320
+3     3294
+4      852
+5      737
+ms_first_response：缺失 0 | <=0 21 | >1h 4
+0.01      1598.0
+0.25      8848.0
+0.50     17984.0
+0.75     39910.0
+0.95    128511.0
+0.99    293406.0
+
+== 3. 順序：order_id vs opportunity_original ==
+opportunity_original == 依 order_id 排序的名次： 0.995
+差值分布：
+ count    36048.00
+mean         1.86
+std         35.65
+min          0.00
+25%          0.00
+50%          0.00
+75%          0.00
+max        925.00
+首列 opportunity_original 分布（序列第一列）：
+ opportunity_original
+1.0    2186
+依 opportunity_original 排序時，order_id 倒退的次數總計： 0 | 涉及序列： 0 / 2186
+opportunity_original 有重複（同序列同值）的列： 0
+opportunity_original 缺失： 0
+同學生同技能被別的列切成幾段（含鷹架列；段數分布）：
+ blk
+1    1786
+2     232
+3      76
+4      52
+5      43

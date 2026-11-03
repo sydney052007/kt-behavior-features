@@ -1,0 +1,70 @@
+== 1. 以 assignment_id 為單位重驗精熟規則 ==
+每個學生×技能涉及的 assignment 數：
+ assignment_id
+1    707
+2    300
+3    243
+4    419
+5    517
+每個學生×技能涉及的 sequence_id 數：
+ sequence_id
+1    730
+2    319
+3    223
+4    447
+5    467
+
+-- 單位 = assignment_id：7934 條；出現 3 連對 0.422
+   3 連對之後還繼續的比例： 0.431 | 第一次 3 連對就是最後一題： 0.569
+   結尾連對數 end_run 分布： {0: 0.116, 1: 0.445, 2: 0.043, 3: 0.245, 4: 0.015, 5: 0.137}
+   3 連對後繼續的列數（>0）分位數： {'count': 1445.0, 'mean': 4.6, 'std': 6.4, 'min': 1.0, '25%': 2.0, '50%': 2.0, '75%': 5.0, 'max': 89.0}
+
+-- 單位 = sequence_id：7088 條；出現 3 連對 0.458
+   3 連對之後還繼續的比例： 0.503 | 第一次 3 連對就是最後一題： 0.497
+   結尾連對數 end_run 分布： {0: 0.124, 1: 0.357, 2: 0.093, 3: 0.241, 4: 0.03, 5: 0.155}
+   3 連對後繼續的列數（>0）分位數： {'count': 1635.0, 'mean': 4.6, 'std': 6.2, 'min': 1.0, '25%': 2.0, '50%': 2.0, '75%': 5.0, 'max': 89.0}
+
+== 1c. 同一 assignment 內，連對 3 之後的下一題答對率 vs 一般 ==
+           size   mean
+prev_run              
+0.0       11997  0.517
+1.0        7265  0.291
+2.0        4811  0.221
+3.0        1809  0.169
+4.0        2232  0.135
+
+== 2. 鷹架列與其主題目的順序（同學生、同 assistment_id）==
+鷹架列： 6944 | 找得到同學生同 assistment_id 的主題目： 1.0
+主題目 order_id < 鷹架 order_id 的比例： 0.878 | 反過來： 0.122
+
+== 3. 年級／年齡 欄位 ==
+欄位： ['order_id', 'assignment_id', 'user_id', 'assistment_id', 'problem_id', 'original', 'correct', 'attempt_count', 'ms_first_response', 'tutor_mode', 'answer_type', 'sequence_id', 'student_class_id', 'position', 'type', 'base_sequence_id', 'skill_id', 'skill_name', 'teacher_id', 'school_id', 'hint_count', 'hint_total', 'overlap_time', 'template_id', 'answer_id', 'answer_text', 'first_action', 'bottom_hint', 'opportunity', 'opportunity_original']
+{'assignment_id': 391, 'sequence_id': 70, 'base_sequence_id': 18, 'student_class_id': 102, 'teacher_id': 67, 'school_id': 41, 'position': 111, 'type': 1, 'tutor_mode': 1, 'answer_type': 2, 'template_id': 35}
+
+== 4. 各校人數（單一技能、original==1 目標列）==
+學校數： 41
+學生數分位數： {'count': 41.0, 'mean': 42.5, 'std': 63.6, 'min': 1.0, '25%': 5.0, '50%': 16.0, '75%': 59.0, 'max': 255.0}
+學生數由大到小前 8： [255, 210, 192, 181, 120, 115, 78, 67]
+列數由大到小占比前 8： [0.298, 0.163, 0.11, 0.088, 0.082, 0.064, 0.029, 0.022]
+  學生數 < 5 的學校：10 間，合計學生 13，列 157
+  學生數 < 10 的學校：17 間，合計學生 60，列 509
+  學生數 < 20 的學校：23 間，合計學生 141，列 1163
+  學生數 < 30 的學校：27 間，合計學生 234，列 2061
+  技能 47：學校 27，<10 人 9 間，最大 232，中位數 19.0
+  技能 311：學校 27，<10 人 10 間，最大 203，中位數 16.0
+學生對應學校數 >1 的學生： 0
+貪婪分成 5 fold 的列數： [10760, 6322, 6322, 6322, 6322] | 最大/最小 = 1.7
+最大學校占全部列： 0.298
+
+== 5. 題組（題型相近）==
+  skill 47 sequence_id: 36 個, 前 3 名占列 [0.138, 0.133, 0.115]
+  skill 311 sequence_id: 34 個, 前 3 名占列 [0.151, 0.106, 0.104]
+  skill 47 base_sequence_id: 7 個, 前 3 名占列 [0.301, 0.266, 0.234]
+  skill 311 base_sequence_id: 11 個, 前 3 名占列 [0.243, 0.232, 0.114]
+  skill 47 student_class_id: 63 個, 前 3 名占列 [0.226, 0.078, 0.057]
+  skill 311 student_class_id: 62 個, 前 3 名占列 [0.116, 0.109, 0.095]
+  skill 47 assignment_id: 165 個, 前 3 名占列 [0.062, 0.05, 0.03]
+  skill 311 assignment_id: 226 個, 前 3 名占列 [0.043, 0.032, 0.029]
+skill_name： {'311': 'Equation Solving Two or Fewer Steps', '47': 'Conversion of Fraction Decimals Percents', '47_63_70_77': 'Conversion of Fraction Decimals Percents'}
+type 取值： {'MasterySection': 36048} | tutor_mode： {'tutor': 36048} | answer_type： {'algebra': 35557, 'choose_1': 491}
+template_id 每技能： {'311': 17, '47': 18}

@@ -1,0 +1,9 @@
+# 資料使用條款：不轉交原始資料，任何資料檔都不進 git
+data/
+*.xlsx
+*.npz
+# Python
+__pycache__/
+.ipynb_checkpoints/
+.venv/
+venv/
