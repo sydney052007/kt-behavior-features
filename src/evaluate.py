@@ -142,3 +142,43 @@ def evaluate(oof, thresholds, cut_points=CUT_POINTS, n_boot=N_BOOT, seed=BOOT_SE
     """A + B + C 全部算完，回傳只含彙總數字的長格式表（沒有學生層級的列）。"""
     rows = eval_a(oof, thresholds) + eval_b(oof) + eval_c(oof, cut_points, n_boot, seed)
     return pd.DataFrame(rows)
+
+
+def per_fold_auc(oof) -> pd.Series:
+    """每個 fold 驗證列的 ROC-AUC（答錯為正類），給配對差異用。"""
+    return pd.Series({f: _auc_pair(*to_wrong(g["correct"], g["p_correct"]))[0]
+                      for f, g in oof.groupby("fold")})
+
+
+def paired_delta_c(oof_old, oof_new, cut_points=CUT_POINTS, n_boot=N_BOOT, seed=BOOT_SEED):
+    """C 的配對差異 ΔAUC = AUC(new) − AUC(old)，附 95% 配對 cluster bootstrap 信賴區間。
+
+    每次重抽學生，用『同一批重抽的列』同時算兩個模型的 AUC 再相減，
+    所以兩個模型之間的相關性會被保留（比各自的信賴區間相減精確）。
+    """
+    a = oof_old.sort_values("order_id").reset_index(drop=True)
+    b = oof_new.sort_values("order_id").reset_index(drop=True)
+    assert a["order_id"].equals(b["order_id"]) and a["correct"].equals(b["correct"]), "兩份 OOF 的列不一致"
+    out = []
+    for k in cut_points:
+        mask = (a["t"] == k).to_numpy()
+        y, s_old = to_wrong(a.loc[mask, "correct"], a.loc[mask, "p_correct"])
+        _, s_new = to_wrong(b.loc[mask, "correct"], b.loc[mask, "p_correct"])
+        codes, _ = pd.factorize(a.loc[mask, "user_id"].to_numpy())
+        order = np.argsort(codes, kind="stable")
+        groups = np.split(order, np.flatnonzero(np.diff(codes[order])) + 1)
+        rng = np.random.default_rng(seed)
+        deltas, skipped = [], 0
+        for _ in range(n_boot):
+            idx = cluster_resample_indices(groups, rng)
+            r_old, _ = _auc_pair(y[idx], s_old[idx])
+            r_new, _ = _auc_pair(y[idx], s_new[idx])
+            if np.isnan(r_old):
+                skipped += 1
+                continue
+            deltas.append(r_new - r_old)
+        lo, hi = np.percentile(deltas, [2.5, 97.5])
+        point = _auc_pair(y, s_new)[0] - _auc_pair(y, s_old)[0]
+        out.append(dict(group=f"t={k}", delta_auc=point, ci_low=lo, ci_high=hi,
+                        n_rows=int(mask.sum()), skipped=skipped))
+    return pd.DataFrame(out)

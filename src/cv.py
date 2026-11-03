@@ -13,19 +13,23 @@ N_FOLDS = 5
 # oof：驗證列的預測（學生層級資料，只能存 data/interim）
 # thresholds：{fold: 閾值}，由該 fold 的訓練列選出
 # fold_users：{fold: (訓練學生集合, 驗證學生集合)}，給測試檢查用，不輸出
-CVResult = namedtuple("CVResult", ["oof", "thresholds", "fold_users"])
+# models：每個 fold 訓練好的模型（取係數、檢查用）
+CVResult = namedtuple("CVResult", ["oof", "thresholds", "fold_users", "models"])
 
 
-def run_cv(df, features, make_model) -> CVResult:
+def run_cv(df, features, make_model, feature_builder=None) -> CVResult:
     """對每個 fold f：用 fold != f 訓練、預測 fold == f，最後合併成 OOF。
 
     make_model：沒有參數、回傳新的 sklearn 分類器（每個 fold 都要新模型）。
+    feature_builder：可選，(train, val) -> (train_feat, val_feat, ...)。
+        需要訓練集統計量的特徵（R0d／R1）用它在每個 fold 內各算一次；
+        不給的話就直接用 df 裡現成的 features 欄位（R0）。
     """
     # 不碰 test：進來的資料就不能有 test 列，fold 也只能是 0–4
     assert (df["role"] == "trainval").all(), "資料裡有 role != trainval 的列（test 不能碰）"
     assert set(df["fold"].unique()) == set(range(N_FOLDS)), "fold 應該剛好是 0–4"
 
-    oof_parts, thresholds, fold_users = [], {}, {}
+    oof_parts, thresholds, fold_users, models = [], {}, {}, []
     for f in range(N_FOLDS):
         train = df[df["fold"] != f]
         val = df[df["fold"] == f]
@@ -35,21 +39,28 @@ def run_cv(df, features, make_model) -> CVResult:
         assert tr_users.isdisjoint(va_users), f"fold {f}：訓練與驗證學生有交集"
         fold_users[f] = (tr_users, va_users)
 
+        if feature_builder is None:
+            train_x, val_x = train, val
+        else:
+            train_x, val_x = feature_builder(train, val)[:2]
+            assert train_x.index.equals(train.index) and val_x.index.equals(val.index)
+
         model = make_model()
-        model.fit(train[features], train["correct"])
+        model.fit(train_x[features], train["correct"])
+        models.append(model)
         classes = list(model.classes_)
         col = classes.index(1)                                # P(答對) 那一欄
 
         # 訓練列的預測只用來選閾值（F1 最大），不存檔
-        p_train = model.predict_proba(train[features])[:, col]
+        p_train = model.predict_proba(train_x[features])[:, col]
         thresholds[f] = select_threshold(train["correct"].to_numpy(), p_train)
 
         part = val[["user_id", "skill_id", "order_id", "t", "fold", "correct"]].copy()
-        part["p_correct"] = model.predict_proba(val[features])[:, col]
+        part["p_correct"] = model.predict_proba(val_x[features])[:, col]
         oof_parts.append(part)
 
     oof = pd.concat(oof_parts, ignore_index=True)
     # OOF 必須剛好覆蓋每個列一次
     assert len(oof) == len(df) and oof["order_id"].is_unique
     assert set(oof["order_id"]) == set(df["order_id"])
-    return CVResult(oof, thresholds, fold_users)
+    return CVResult(oof, thresholds, fold_users, models)
