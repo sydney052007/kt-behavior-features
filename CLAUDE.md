@@ -33,7 +33,7 @@
 ## 已決定（11/3）
 - 序列第 1 列（沒有歷史）：保留為目標。次數類特徵 = 0；比率類特徵用訓練集平均；加 `has_history` 旗標；位置分桶「1」單獨報告。
 - Level 3 延伸只做**跨學校**（以學校分組 5-fold）；**leakage 稽核取消**。
-- R0 模型特徵 = `log1p_c`、`log1p_w`、`skill_311`、`has_history`（常數 `R0_FEATURES` 在 `src/features.py`）；`t` 只是欄位，不進模型，因為 `t = c + w + 1` 會共線。一個共用模型、不分技能交互、R0 的 LR 不加正則化（`penalty=None`）。
+- R0 模型特徵 = `log1p_c`、`log1p_w`、`skill_311`、`has_history`（常數 `R0_FEATURES` 在 `src/features.py`）；`t` 只是欄位，不進模型，因為 `t = c + w + 1` 會共線。一個共用模型、不分技能交互、R0 的 LR 不加正則化（`C=np.inf`，等同 `penalty=None`，但避免 sklearn 1.8 之後的棄用警告）。
 - 次數用 `log1p`：R0 的 5-fold 試跑顯示比原始次數好約 0.012 AUC，5 個 fold 一致；R1 沿用同樣設定。
 - 評估 A（全部列，主要，選模型與調參以它為準）、B（位置分桶）、C（固定切點）每個模型都要全部報告，評估寫成 `src/evaluate.py` 可重用。
 - 固定切點事先定為兩個：前 5 題 → 第 6 題（t=6）、前 10 題 → 第 11 題（t=11），不依分數挑；信賴區間用以學生為單位重抽的 cluster bootstrap（2000 次，固定種子）。

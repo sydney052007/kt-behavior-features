@@ -1,0 +1,124 @@
+[rf] 丟掉 test 列 5,532；使用 trainval 30,516 列；網格 9 組 × 3 組特徵
+[grid] R0   depth=8, leaf=5        A ROC-AUC 0.6696 ± 0.0239   (累計 5s)
+[grid] R0   depth=8, leaf=20       A ROC-AUC 0.6700 ± 0.0241   (累計 9s)
+[grid] R0   depth=8, leaf=50       A ROC-AUC 0.6706 ± 0.0244   (累計 14s)
+[grid] R0   depth=16, leaf=5       A ROC-AUC 0.6529 ± 0.0243   (累計 20s)
+[grid] R0   depth=16, leaf=20      A ROC-AUC 0.6638 ± 0.0240   (累計 26s)
+[grid] R0   depth=16, leaf=50      A ROC-AUC 0.6684 ± 0.0241   (累計 31s)
+[grid] R0   depth=None, leaf=5     A ROC-AUC 0.6516 ± 0.0248   (累計 36s)
+[grid] R0   depth=None, leaf=20    A ROC-AUC 0.6638 ± 0.0240   (累計 42s)
+[grid] R0   depth=None, leaf=50    A ROC-AUC 0.6684 ± 0.0241   (累計 47s)
+[grid] R0d  depth=8, leaf=5        A ROC-AUC 0.7479 ± 0.0154   (累計 53s)
+[grid] R0d  depth=8, leaf=20       A ROC-AUC 0.7478 ± 0.0155   (累計 59s)
+[grid] R0d  depth=8, leaf=50       A ROC-AUC 0.7478 ± 0.0156   (累計 65s)
+[grid] R0d  depth=16, leaf=5       A ROC-AUC 0.7303 ± 0.0163   (累計 73s)
+[grid] R0d  depth=16, leaf=20      A ROC-AUC 0.7440 ± 0.0165   (累計 80s)
+[grid] R0d  depth=16, leaf=50      A ROC-AUC 0.7475 ± 0.0158   (累計 87s)
+[grid] R0d  depth=None, leaf=5     A ROC-AUC 0.7257 ± 0.0162   (累計 94s)
+[grid] R0d  depth=None, leaf=20    A ROC-AUC 0.7440 ± 0.0165   (累計 101s)
+[grid] R0d  depth=None, leaf=50    A ROC-AUC 0.7475 ± 0.0158   (累計 109s)
+[grid] R1   depth=8, leaf=5        A ROC-AUC 0.7562 ± 0.0161   (累計 116s)
+[grid] R1   depth=8, leaf=20       A ROC-AUC 0.7559 ± 0.0163   (累計 124s)
+[grid] R1   depth=8, leaf=50       A ROC-AUC 0.7556 ± 0.0164   (累計 142s)
+[grid] R1   depth=16, leaf=5       A ROC-AUC 0.7558 ± 0.0149   (累計 151s)
+[grid] R1   depth=16, leaf=20      A ROC-AUC 0.7575 ± 0.0155   (累計 160s)
+[grid] R1   depth=16, leaf=50      A ROC-AUC 0.7574 ± 0.0155   (累計 169s)
+[grid] R1   depth=None, leaf=5     A ROC-AUC 0.7534 ± 0.0148   (累計 178s)
+[grid] R1   depth=None, leaf=20    A ROC-AUC 0.7575 ± 0.0154   (累計 188s)
+[grid] R1   depth=None, leaf=50    A ROC-AUC 0.7576 ± 0.0154   (累計 197s)
+
+=== 3 組特徵 × 9 組超參數：A ROC-AUC 平均（* = 該組最佳）===
+  R0
+    depth=8, leaf=5        0.6696 ± 0.0239
+    depth=8, leaf=20       0.6700 ± 0.0241
+    depth=8, leaf=50       0.6706 ± 0.0244  *
+    depth=16, leaf=5       0.6529 ± 0.0243
+    depth=16, leaf=20      0.6638 ± 0.0240
+    depth=16, leaf=50      0.6684 ± 0.0241
+    depth=None, leaf=5     0.6516 ± 0.0248
+    depth=None, leaf=20    0.6638 ± 0.0240
+    depth=None, leaf=50    0.6684 ± 0.0241
+  R0d
+    depth=8, leaf=5        0.7479 ± 0.0154  *
+    depth=8, leaf=20       0.7478 ± 0.0155
+    depth=8, leaf=50       0.7478 ± 0.0156
+    depth=16, leaf=5       0.7303 ± 0.0163
+    depth=16, leaf=20      0.7440 ± 0.0165
+    depth=16, leaf=50      0.7475 ± 0.0158
+    depth=None, leaf=5     0.7257 ± 0.0162
+    depth=None, leaf=20    0.7440 ± 0.0165
+    depth=None, leaf=50    0.7475 ± 0.0158
+  R1
+    depth=8, leaf=5        0.7562 ± 0.0161
+    depth=8, leaf=20       0.7559 ± 0.0163
+    depth=8, leaf=50       0.7556 ± 0.0164
+    depth=16, leaf=5       0.7558 ± 0.0149
+    depth=16, leaf=20      0.7575 ± 0.0155
+    depth=16, leaf=50      0.7574 ± 0.0155
+    depth=None, leaf=5     0.7534 ± 0.0148
+    depth=None, leaf=20    0.7575 ± 0.0154
+    depth=None, leaf=50    0.7576 ± 0.0154  *
+  最佳設定：R0: depth=8, leaf=50；R0d: depth=8, leaf=5；R1: depth=None, leaf=50
+
+=== A 全部列（各組最佳設定；5 個 fold 平均 ± 標準差）===
+  roc_auc                   R0: 0.6706 ± 0.0244   R0d: 0.7479 ± 0.0154   R1: 0.7576 ± 0.0154
+  pr_auc                    R0: 0.5432 ± 0.0440   R0d: 0.6260 ± 0.0313   R1: 0.6518 ± 0.0306
+  f1                        R0: 0.5579 ± 0.0246   R0d: 0.6110 ± 0.0241   R1: 0.6163 ± 0.0222
+  accuracy                  R0: 0.5574 ± 0.0139   R0d: 0.6596 ± 0.0088   R1: 0.6699 ± 0.0103
+  acc_baseline_all_correct  R0: 0.6403 ± 0.0120   R0d: 0.6403 ± 0.0120   R1: 0.6403 ± 0.0120
+  threshold                 R0: 0.2792 ± 0.0023   R0d: 0.3233 ± 0.0124   R1: 0.3305 ± 0.0123
+
+=== B 位置分桶（合併 OOF）===
+model                  R0     R0d      R1  n_rows
+group  metric                                    
+t=1    wrong_rate  0.4226  0.4226  0.4226    1841
+       roc_auc     0.5194  0.6900  0.6932    1841
+       pr_auc      0.4339  0.6021  0.6068    1841
+t=2-4  wrong_rate  0.3570  0.3570  0.3570    4911
+       roc_auc     0.6568  0.7436  0.7574    4911
+       pr_auc      0.5204  0.5951  0.6370    4911
+t=5-10 wrong_rate  0.3509  0.3509  0.3509    7473
+       roc_auc     0.6591  0.7391  0.7528    7473
+       pr_auc      0.5462  0.6099  0.6361    7473
+t=11+  wrong_rate  0.3585  0.3585  0.3585   16291
+       roc_auc     0.6833  0.7574  0.7651   16291
+       pr_auc      0.5564  0.6461  0.6708   16291
+
+=== C 固定切點（95% cluster bootstrap CI）===
+  t=6
+    roc_auc R0: 0.6498 [0.6179, 0.6797]   R0d: 0.7445 [0.7172, 0.7702]   R1: 0.7551 [0.7283, 0.7819]
+    pr_auc  R0: 0.5393 [0.4929, 0.5884]   R0d: 0.6259 [0.5804, 0.6716]   R1: 0.6539 [0.6120, 0.6959]
+  t=11
+    roc_auc R0: 0.6823 [0.6466, 0.7156]   R0d: 0.7486 [0.7161, 0.7797]   R1: 0.7497 [0.7167, 0.7802]
+    pr_auc  R0: 0.5969 [0.5473, 0.6520]   R0d: 0.6714 [0.6203, 0.7203]   R1: 0.6956 [0.6494, 0.7391]
+
+=== 配對 ΔAUC ===
+  [own_best] A R0d - R0  各 fold [+0.0691, +0.0667, +0.0697, +0.0824, +0.0986]  平均 +0.0773  標準差 0.0134  較好 5/5
+  [own_best] A R1 - R0d  各 fold [+0.0091, +0.0105, +0.0080, +0.0094, +0.0114]  平均 +0.0097  標準差 0.0013  較好 5/5
+  [R0d_best_cfg_for_all] A R0d - R0  各 fold [+0.0702, +0.0687, +0.0707, +0.0828, +0.0989]  平均 +0.0783  標準差 0.0128  較好 5/5
+  [R0d_best_cfg_for_all] A R1 - R0d  各 fold [+0.0087, +0.0099, +0.0054, +0.0075, +0.0102]  平均 +0.0083  標準差 0.0019  較好 5/5
+  [own_best] C t=6   R0d - R0  +0.0946  [+0.0633, +0.1256]
+  [own_best] C t=11  R0d - R0  +0.0663  [+0.0318, +0.0985]
+  [own_best] C t=6   R1 - R0d  +0.0106  [-0.0020, +0.0235]
+  [own_best] C t=11  R1 - R0d  +0.0010  [-0.0116, +0.0137]
+  [R0d_best_cfg_for_all] C t=6   R0d - R0  +0.0947  [+0.0633, +0.1251]
+  [R0d_best_cfg_for_all] C t=11  R0d - R0  +0.0695  [+0.0345, +0.1021]
+  [R0d_best_cfg_for_all] C t=6   R1 - R0d  +0.0106  [-0.0012, +0.0227]
+  [R0d_best_cfg_for_all] C t=11  R1 - R0d  -0.0010  [-0.0133, +0.0113]
+  （穩健性所用的設定 = R0d 的最佳設定：depth=8, leaf=5）
+
+=== RF 與 LR 並排（A）===
+  R0d A ROC-AUC      LR +0.7468 ± 0.0163 | RF +0.7479 ± 0.0154  (depth=8, leaf=5)
+  R1 A ROC-AUC       LR +0.7516 ± 0.0173 | RF +0.7576 ± 0.0154  (depth=None, leaf=50)
+  R1 - R0d A ΔAUC    LR +0.0048 ± 0.0019 | RF +0.0097 ± 0.0013  (各自最佳設定)
+  R1 - R0d A ΔAUC    LR +0.0048 ± 0.0019 | RF +0.0083 ± 0.0019  (R0d 最佳設定（depth=8, leaf=5）)
+
+=== R1 最佳設定（depth=None, leaf=50）的 permutation importance：AUC 下降量（5 個 fold 平均 ± 標準差；診斷用）===
+  item_diff     +0.1048 ± 0.0125
+  last_correct  +0.0202 ± 0.0041
+  hint          +0.0417 ± 0.0057
+  time          +0.0057 ± 0.0004
+  att           +0.0062 ± 0.0021
+  scaffold      +0.0009 ± 0.0004
+
+[rf] 完成，共 5.1 分鐘；已存 results/rf_*.csv
