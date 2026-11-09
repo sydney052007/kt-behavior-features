@@ -1,0 +1,2 @@
+rule,delta_auc,n_folds_better,verdict
+RF 的 A：R1r − R1 平均 ΔAUC ≥ +0.002 且至少 4/5 fold 較好,0.005437133113961723,5,R1 的改良版

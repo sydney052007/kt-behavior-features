@@ -1,0 +1,105 @@
+[r1r] 丟掉 test 列 5,532；使用 trainval 30,516 列
+
+=== 1. 4 個新特徵（5 個 fold 的驗證列合併 = trainval 30,516 列）===
+                 mean     std     min     max  corr_correct
+feature                                                    
+rel_hint_mean  0.0215  0.2366 -0.5815  0.9336       -0.2694
+rel_hint_last  0.0042  0.3665 -0.7549  0.9642       -0.2428
+rel_att_mean   0.0231  0.2018 -0.8411  4.0336       -0.0893
+rel_att_last   0.0085  0.3680 -1.1085  5.0348       -0.0710
+[grid] R1r      depth=8, leaf=5        A ROC-AUC 0.7597 ± 0.0168   (累計 8s)
+[grid] R1r      depth=8, leaf=20       A ROC-AUC 0.7593 ± 0.0172   (累計 18s)
+[grid] R1r      depth=8, leaf=50       A ROC-AUC 0.7585 ± 0.0175   (累計 28s)
+[grid] R1r      depth=16, leaf=5       A ROC-AUC 0.7615 ± 0.0160   (累計 44s)
+[grid] R1r      depth=16, leaf=20      A ROC-AUC 0.7630 ± 0.0164   (累計 57s)
+[grid] R1r      depth=16, leaf=50      A ROC-AUC 0.7618 ± 0.0168   (累計 68s)
+[grid] R1r      depth=None, leaf=5     A ROC-AUC 0.7591 ± 0.0153   (累計 82s)
+[grid] R1r      depth=None, leaf=20    A ROC-AUC 0.7627 ± 0.0166   (累計 94s)
+[grid] R1r      depth=None, leaf=50    A ROC-AUC 0.7619 ± 0.0167   (累計 105s)
+[grid] R0d_rel  depth=8, leaf=5        A ROC-AUC 0.7598 ± 0.0166   (累計 114s)
+[grid] R0d_rel  depth=8, leaf=20       A ROC-AUC 0.7597 ± 0.0170   (累計 123s)
+[grid] R0d_rel  depth=8, leaf=50       A ROC-AUC 0.7588 ± 0.0175   (累計 131s)
+[grid] R0d_rel  depth=16, leaf=5       A ROC-AUC 0.7577 ± 0.0160   (累計 142s)
+[grid] R0d_rel  depth=16, leaf=20      A ROC-AUC 0.7603 ± 0.0176   (累計 152s)
+[grid] R0d_rel  depth=16, leaf=50      A ROC-AUC 0.7602 ± 0.0175   (累計 162s)
+[grid] R0d_rel  depth=None, leaf=5     A ROC-AUC 0.7547 ± 0.0164   (累計 174s)
+[grid] R0d_rel  depth=None, leaf=20    A ROC-AUC 0.7600 ± 0.0175   (累計 184s)
+[grid] R0d_rel  depth=None, leaf=50    A ROC-AUC 0.7603 ± 0.0174   (累計 193s)
+[reproduce] RF R1 depth=None, leaf=50：各 fold AUC 與先前結果最大差 0.0e+00  OK
+[reproduce] RF R0d depth=8, leaf=5：各 fold AUC 與先前結果最大差 0.0e+00  OK
+[reproduce] LR R1／R0d 的 OOF 與 results/r1_lr_cv.csv 一致  OK
+
+=== 2. A ROC-AUC／PR-AUC（5 個 fold 平均 ± 標準差；RF 為各自最佳設定）===
+  LR R1r        ROC 0.7546 ± 0.0187   PR 0.6497 ± 0.0349   (17 個特徵；StandardScaler+LR)
+  LR R0d_rel    ROC 0.7531 ± 0.0177   PR 0.6420 ± 0.0354   (10 個特徵；StandardScaler+LR)
+  RF R1r        ROC 0.7630 ± 0.0164   PR 0.6599 ± 0.0321   (17 個特徵；depth=16, leaf=20)
+  RF R0d_rel    ROC 0.7603 ± 0.0176   PR 0.6543 ± 0.0316   (10 個特徵；depth=16, leaf=20)
+  LR R1（參考）     ROC 0.7516 ± 0.0173   PR 0.6439 ± 0.0343   (13 個特徵；StandardScaler+LR)
+  LR R0d（參考）    ROC 0.7468 ± 0.0163   PR 0.6267 ± 0.0314   (6 個特徵；StandardScaler+LR)
+  RF R1（參考）     ROC 0.7576 ± 0.0154   PR 0.6518 ± 0.0306   (13 個特徵；depth=None, leaf=50)
+  RF R0d（參考）    ROC 0.7479 ± 0.0154   PR 0.6260 ± 0.0313   (6 個特徵；depth=8, leaf=5)
+
+  RF 完整網格（A ROC-AUC 平均 ± 標準差，* = 最佳）
+    R1r
+      depth=8, leaf=5   0.7597 ± 0.0168
+      depth=8, leaf=20  0.7593 ± 0.0172
+      depth=8, leaf=50  0.7585 ± 0.0175
+      depth=16, leaf=5   0.7615 ± 0.0160
+      depth=16, leaf=20  0.7630 ± 0.0164  *
+      depth=16, leaf=50  0.7618 ± 0.0168
+      depth=None, leaf=5   0.7591 ± 0.0153
+      depth=None, leaf=20  0.7627 ± 0.0166
+      depth=None, leaf=50  0.7619 ± 0.0167
+    R0d_rel
+      depth=8, leaf=5   0.7598 ± 0.0166
+      depth=8, leaf=20  0.7597 ± 0.0170
+      depth=8, leaf=50  0.7588 ± 0.0175
+      depth=16, leaf=5   0.7577 ± 0.0160
+      depth=16, leaf=20  0.7603 ± 0.0176  *
+      depth=16, leaf=50  0.7602 ± 0.0175
+      depth=None, leaf=5   0.7547 ± 0.0164
+      depth=None, leaf=20  0.7600 ± 0.0175
+      depth=None, leaf=50  0.7603 ± 0.0174
+
+  F1／Accuracy／B／C 全部寫在 results/r1r_cv.csv（A 的 F1、Accuracy：）
+    LR R1r      F1 0.6127 ± 0.0232   Accuracy 0.6621 ± 0.0151
+    LR R0d_rel  F1 0.6108 ± 0.0222   Accuracy 0.6543 ± 0.0090
+    RF R1r      F1 0.6187 ± 0.0223   Accuracy 0.6889 ± 0.0103
+    RF R0d_rel  F1 0.6188 ± 0.0235   Accuracy 0.6825 ± 0.0102
+
+=== 3./4. 配對差異（Δ = 左 − 右）===
+  [own_best] LR A roc_auc R1r - R1       [+0.0050, +0.0047, +0.0019, +0.0015, +0.0020]  平均 +0.0030  標準差 0.0017  較好 5/5
+  [own_best] RF A roc_auc R1r - R1       [+0.0078, +0.0060, +0.0038, +0.0029, +0.0067]  平均 +0.0054  標準差 0.0020  較好 5/5
+  [own_best] LR A roc_auc R0d_rel - R0d  [+0.0095, +0.0065, +0.0052, +0.0043, +0.0059]  平均 +0.0063  標準差 0.0020  較好 5/5
+  [own_best] RF A roc_auc R0d_rel - R0d  [+0.0158, +0.0147, +0.0088, +0.0094, +0.0134]  平均 +0.0124  標準差 0.0032  較好 5/5
+  [same_cfg_R1best] RF A roc_auc R1r - R1       [+0.0066, +0.0062, +0.0031, +0.0016, +0.0041]  平均 +0.0043  標準差 0.0021  較好 5/5
+  [todo_pr] LR A pr_auc  R1 - R0d       [+0.0241, +0.0191, +0.0156, +0.0101, +0.0170]  平均 +0.0172  標準差 0.0051  較好 5/5
+  [todo_pr] RF A pr_auc  R1 - R0d       [+0.0253, +0.0248, +0.0281, +0.0251, +0.0259]  平均 +0.0258  標準差 0.0013  較好 5/5
+  [own_best] LR C roc_auc R1r - R1       t=6   +0.0050  [+0.0000, +0.0100]
+  [own_best] LR C roc_auc R1r - R1       t=11  +0.0048  [-0.0013, +0.0110]
+  [own_best] RF C roc_auc R1r - R1       t=6   +0.0133  [+0.0045, +0.0223]
+  [own_best] RF C roc_auc R1r - R1       t=11  +0.0164  [+0.0074, +0.0260]
+  [own_best] LR C roc_auc R0d_rel - R0d  t=6   +0.0078  [+0.0005, +0.0151]
+  [own_best] LR C roc_auc R0d_rel - R0d  t=11  +0.0110  [+0.0025, +0.0196]
+  [own_best] RF C roc_auc R0d_rel - R0d  t=6   +0.0214  [+0.0056, +0.0355]
+  [own_best] RF C roc_auc R0d_rel - R0d  t=11  +0.0208  [+0.0062, +0.0355]
+  [same_cfg_R1best] RF C roc_auc R1r - R1       t=6   +0.0106  [+0.0028, +0.0182]
+  [same_cfg_R1best] RF C roc_auc R1r - R1       t=11  +0.0163  [+0.0086, +0.0240]
+  [todo_pr] LR C pr_auc  R1 - R0d       t=6   +0.0243  [+0.0099, +0.0391]
+  [todo_pr] LR C pr_auc  R1 - R0d       t=11  +0.0240  [+0.0087, +0.0385]
+  [todo_pr] RF C pr_auc  R1 - R0d       t=6   +0.0280  [+0.0036, +0.0506]
+  [todo_pr] RF C pr_auc  R1 - R0d       t=11  +0.0242  [-0.0015, +0.0487]
+
+=== 判準：RF 的 A，R1r − R1 平均 ΔAUC = +0.0054（門檻 ≥ +0.002），較好 5/5（門檻 ≥ 4） → 【R1 的改良版】
+
+=== 5. R1r 的 permutation importance（RF depth=16, leaf=20；AUC 下降量，5 個 fold 平均 ± 標準差；診斷用）===
+  item_diff     +0.1150 ± 0.0139
+  last_correct  +0.0132 ± 0.0027
+  hint          +0.0064 ± 0.0027
+  att           +0.0028 ± 0.0011
+  time          +0.0048 ± 0.0007
+  scaffold      +0.0006 ± 0.0004
+  rel_hint      +0.0231 ± 0.0037
+  rel_att       +0.0049 ± 0.0010
+
+[r1r] 完成，共 6.4 分鐘；已存 results/r1r_*.csv
