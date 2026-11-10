@@ -143,7 +143,7 @@ def main() -> None:
 
     # ---- 2. 完整網格 + 最佳設定
     grid = grid_table(results)
-    grid.to_csv("results/03_process/rf_grid_auc.csv", index=False)
+    grid.to_csv("results/02_analysis/rf_grid_auc.csv", index=False)
     best = best_cfgs(results)
     print("\n=== 3 組特徵 × 9 組超參數：A ROC-AUC 平均（* = 該組最佳）===")
     pivot = grid.assign(cfg=lambda d: "depth=" + d.max_depth + ", leaf=" + d.min_samples_leaf.astype(str))

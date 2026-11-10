@@ -74,10 +74,23 @@ def test_student_split_reference_is_computed_from_csv():
     assert np.isclose(ref["diff_folds"].mean(), ref["diff_mean"], atol=1e-12) and ref["n_better"] == 5
 
 
+def test_vs_student_split_columns_are_clean_and_consistent():
+    """修正重複欄位後：只有 diff_fold0…4 一套，且數字等於各自來源檔的逐 fold 差值。"""
+    d = pd.read_csv("results/02_analysis/xschool_r0_vs_student_split.csv")
+    assert [c for c in d.columns if c.startswith("diff_fold")] == [f"diff_fold{k}" for k in range(5)]
+    assert not d.isna().any().any() and len(d) == 2
+    student = pd.read_csv("results/02_analysis/r1_lr_paired.csv")
+    student = student[(student["eval"] == "A") & (student["comparison"] == "R0d - R0")].iloc[0]
+    school = pd.read_csv("results/02_analysis/xschool_r0_a_folds.csv").sort_values("fold")
+    for k in range(5):
+        assert abs(d.at[0, f"diff_fold{k}"] - student[f"fold{k}"]) < 1e-12        # 學生分組
+        assert abs(d.at[1, f"diff_fold{k}"] - school["diff_roc_auc"].iloc[k]) < 1e-12   # 學校群分組
+
+
 if __name__ == "__main__":
     tests = [test_r0_features_exclude_item_diff_and_last_correct, test_groups_disjoint_and_no_test_students,
              test_r0_under_student_folds_reproduces_existing_csv, test_decision_rule_boundaries,
-             test_student_split_reference_is_computed_from_csv]
+             test_student_split_reference_is_computed_from_csv, test_vs_student_split_columns_are_clean_and_consistent]
     for t in tests:
         try:
             t()

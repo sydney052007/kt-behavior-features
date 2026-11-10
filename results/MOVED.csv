@@ -39,7 +39,7 @@ results/xschool_r0_paired_c.csv,results/02_analysis/xschool_r0_paired_c.csv,02_a
 results/xschool_r0_vs_student_split.csv,results/02_analysis/xschool_r0_vs_student_split.csv,02_analysis
 results/r1r_rf_grid.csv,results/03_process/r1r_rf_grid.csv,03_process
 results/r1r_run.log,results/03_process/r1r_run.log,03_process
-results/rf_grid_auc.csv,results/03_process/rf_grid_auc.csv,03_process
+results/rf_grid_auc.csv,results/02_analysis/rf_grid_auc.csv,02_analysis
 results/rf_run.log,results/03_process/rf_run.log,03_process
 results/xschool_r0_run.log,results/03_process/xschool_r0_run.log,03_process
 results/xschool_run.log,results/03_process/xschool_run.log,03_process

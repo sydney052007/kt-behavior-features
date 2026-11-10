@@ -108,7 +108,7 @@ def main() -> None:
 
     # ---- 參考組 R1、R0d（沿用既有結果；RF 只重跑各自最佳設定並確認可重現）
     # max_depth 欄有字串 "None"，不能讓 pandas 把它當缺失值
-    old_grid = pd.read_csv("results/03_process/rf_grid_auc.csv", dtype={"max_depth": str}, keep_default_na=False)
+    old_grid = pd.read_csv("results/02_analysis/rf_grid_auc.csv", dtype={"max_depth": str}, keep_default_na=False)
     ref_cfg = {}
     for n in ["R1", "R0d"]:
         r = old_grid[(old_grid.features == n) & old_grid.is_best].iloc[0]

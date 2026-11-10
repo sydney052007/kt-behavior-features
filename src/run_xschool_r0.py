@@ -92,7 +92,7 @@ def main() -> None:
         dict(split="學生分組（既有 csv）", r0_roc_auc=ref["r0"], r0d_roc_auc=ref["r0d"], diff_mean=ref["diff_mean"],
              diff_std=ref["diff_std"], n_folds_better=ref["n_better"], **{f"diff_fold{k}": v for k, v in enumerate(ref["diff_folds"])}),
         dict(split="學校群分組（本實驗）", r0_roc_auc=roc.mean(), r0d_roc_auc=r0d_auc.mean(), diff_mean=d.mean(),
-             diff_std=d.std(ddof=1), n_folds_better=int((d > 0).sum()), **{f"diff_fold{k}": d[k] for k in d.index})])
+             diff_std=d.std(ddof=1), n_folds_better=int((d > 0).sum()), **{f"diff_fold{int(k)}": d[k] for k in d.index})])
     side.to_csv("results/02_analysis/xschool_r0_vs_student_split.csv", index=False)
 
     big_fold = int(pd.read_csv("results/01_preprocessing/xschool_folds.csv").query("contains_largest_group").iloc[0]["fold"])
