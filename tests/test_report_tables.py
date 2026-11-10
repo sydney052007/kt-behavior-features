@@ -50,7 +50,9 @@ def _source_numbers(files):
 def test_all_expected_tables_exist_and_match_fresh_build():
     t = _tables()
     expected = {"a_main_A", "a_main_C", "b_paired_A", "b_paired_C", "c_ablation", "d_position_bins_LR", "d_position_bins_RF",
-                "e_cross_school", "g_fold_auc", "f_rf_grid_R0", "f_rf_grid_R0d", "f_rf_grid_R1"}
+                "e_cross_school", "g_fold_auc", "f_rf_grid_R0", "f_rf_grid_R0d", "f_rf_grid_R1",
+                "h_error_segments_LR", "h_error_segments_RF", "i_error_confusion", "j_calibration_LR", "j_calibration_RF",
+                "j_calibration_ece", "k_high_confidence"}
     assert set(t) == expected
     for name, info in t.items():
         disk, fresh = _read(name), info["df"]

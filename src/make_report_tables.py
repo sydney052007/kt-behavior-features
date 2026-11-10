@@ -20,7 +20,7 @@ FEATS = ["R0", "R0d", "R1"]
 FOLDS = [f"fold{k}" for k in range(5)]
 # 文字欄位（識別用，不是數值）；其餘欄位若不是 *_str 就必須是數值（或布林）
 ID_COLS = {"model_type", "features", "setting", "analysis", "comparison", "group", "reference", "split", "bucket",
-           "max_depth", "setting_R0", "setting_R0d", "setting_R1"}
+           "max_depth", "setting_R0", "setting_R0d", "setting_R1", "segment_type", "segment", "model", "note"}
 
 
 def rd(name):
@@ -219,6 +219,93 @@ def table_g_fold_auc():
     return pd.DataFrame(rows)
 
 
+# ====================================================================== (h) 錯誤分析：分段表現
+def na(x, fn):
+    return "n/a" if pd.isna(x) else fn(x)
+
+
+def table_h_error_segments():
+    seg = rd("error_segments.csv")
+    out = {}
+    for mt in ["LR", "RF"]:
+        d = seg[seg["model_type"] == mt]
+        rows = []
+        for stype, name in d[["segment_type", "segment"]].drop_duplicates().itertuples(index=False):
+            sub = d[(d["segment_type"] == stype) & (d["segment"] == name)]
+            g = lambda model, metric: one(sub, model=model, metric=metric)
+            base = g("R0d", "roc_auc")
+            dl = g("R1 - R0d", "delta_roc_auc")
+            row = dict(segment_type=stype, segment=name, n_rows=int(base["n_rows"]), n_students=int(base["n_students"]), wrong_rate=base["wrong_rate"],
+                       roc_auc_R0d=base["value"], roc_auc_R1=g("R1", "roc_auc")["value"],
+                       pr_auc_R0d=g("R0d", "pr_auc")["value"], pr_auc_R1=g("R1", "pr_auc")["value"],
+                       delta_roc_auc=dl["value"], delta_ci_low=dl["ci_low"], delta_ci_high=dl["ci_high"],
+                       note=base["note"] if isinstance(base["note"], str) else np.nan)      # 沒有註記就留空（csv 讀回來是缺失值）
+            for c in ["roc_auc_R0d", "roc_auc_R1", "pr_auc_R0d", "pr_auc_R1"]:
+                row[f"{c}_str"] = na(row[c], f4)
+            row["delta_str"] = "n/a" if pd.isna(dl["value"]) or pd.isna(dl["ci_low"]) else sci(dl["value"], dl["ci_low"], dl["ci_high"])
+            rows.append(row)
+        out[mt] = pd.DataFrame(rows)
+    return out
+
+
+# ====================================================================== (i) 錯誤分析：混淆矩陣與 slip／guess
+def table_i_error_confusion():
+    c = rd("error_confusion.csv")
+    rows = []
+    for (mt, fs), g in c.groupby(["model_type", "model"], sort=False):
+        v = lambda m: one(g, metric=m)
+        slip, guess = v("slip (pred correct, actual wrong)"), v("guess (pred wrong, actual correct)")
+        row = dict(model_type=mt, model=fs, TP=int(v("TP")["count"]), FP=int(v("FP")["count"]), FN=int(v("FN")["count"]), TN=int(v("TN")["count"]),
+                   slip_count=int(slip["count"]), slip_share_of_all_rows=slip["share_of_all_rows"], slip_share_of_actual_wrong=slip["share_within_actual_class"],
+                   guess_count=int(guess["count"]), guess_share_of_all_rows=guess["share_of_all_rows"], guess_share_of_actual_correct=guess["share_within_actual_class"])
+        row["slip_str"] = f"{row['slip_share_of_all_rows']:.4f} of all rows ({row['slip_share_of_actual_wrong']:.4f} of actual wrong)"
+        row["guess_str"] = f"{row['guess_share_of_all_rows']:.4f} of all rows ({row['guess_share_of_actual_correct']:.4f} of actual correct)"
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+# ====================================================================== (j) 錯誤分析：校準
+def table_j_calibration():
+    cal, ece = rd("error_calibration.csv"), rd("error_calibration_ece.csv")
+    out = {}
+    for mt in ["LR", "RF"]:
+        d = cal[cal["model_type"] == mt]
+        rows = []
+        for b in sorted(d["bin"].unique()):
+            row = dict(bin=int(b))
+            first = one(d[d["model"] == "R0d"], bin=b)
+            row["bin_low"], row["bin_high"] = first["bin_low"], first["bin_high"]
+            for fs in ["R0d", "R1"]:
+                r = one(d[d["model"] == fs], bin=b)
+                row[f"n_rows_{fs}"], row[f"mean_pred_{fs}"], row[f"obs_correct_rate_{fs}"] = int(r["n_rows"]), r["mean_pred"], r["obs_correct_rate"]
+            for fs in ["R0d", "R1"]:
+                row[f"calibration_{fs}_str"] = "n/a" if row[f"n_rows_{fs}"] == 0 else f"{row[f'mean_pred_{fs}']:.4f} predicted vs {row[f'obs_correct_rate_{fs}']:.4f} observed"
+            rows.append(row)
+        out[mt] = pd.DataFrame(rows)
+    e = ece.copy()
+    e["ece_str"] = e["ece"].map(f4)
+    out["ece"] = e[["model_type", "model", "ece", "n_rows", "ece_str"]]
+    return out
+
+
+# ====================================================================== (k) 錯誤分析：高信心錯誤
+def table_k_high_confidence():
+    g, f = rd("error_high_conf_groups.csv"), rd("error_high_conf_features.csv")
+    rows = []
+    for _, r in g.iterrows():
+        sub = f[(f["model_type"] == r["model_type"]) & (f["model"] == r["model"]) & (f["group"] == r["group"])]
+        row = dict(model_type=r["model_type"], model=r["model"], group=r["group"], n_rows=int(r["n_rows"]), share_of_all_rows=r["share_of_all_rows"],
+                   region_rows=int(r["region_rows"]), share_of_region=r["share_of_region"])
+        for feat in ["position", "item_diff", "hint_rate", "last_correct", "log1p_c", "log1p_w", "has_history"]:
+            x = one(sub, feature=feat)
+            row[f"group_mean_{feat}"], row[f"all_rows_mean_{feat}"] = x["group_mean"], x["all_rows_mean"]
+        row["share_str"] = f"{row['share_of_all_rows']:.4f} of all rows ({row['share_of_region']:.4f} of region)"
+        for feat in ["position", "item_diff", "hint_rate", "last_correct", "log1p_c", "log1p_w", "has_history"]:
+            row[f"{feat}_str"] = f"{row[f'group_mean_{feat}']:.4f} vs {row[f'all_rows_mean_{feat}']:.4f}"
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
 # ====================================================================== 建立所有表
 def build_all():
     a_A, a_C = table_a_main()
@@ -239,6 +326,16 @@ def build_all():
     }
     for fs, df in f.items():
         T[f"f_rf_grid_{fs}"] = (df, ["rf_grid_auc.csv"], f"RF 網格（{fs}）：max_depth（列）× min_samples_leaf（欄）的 A ROC-AUC，* = 最佳", "（補充；無對應候選）")
+    # 錯誤分析（來源：02_analysis/error_*.csv）
+    h = table_h_error_segments()
+    for mt in ["LR", "RF"]:
+        T[f"h_error_segments_{mt}"] = (h[mt], ["error_segments.csv"], f"錯誤分析・分段表現（{mt}）：位置／技能／item_diff 三等分／提示歷史，R0d 與 R1 的 AUC、R1−R0d 的 ΔAUC 與 95% CI", "8. 錯誤分析")
+    T["i_error_confusion"] = (table_i_error_confusion(), ["error_confusion.csv"], "錯誤分析・混淆矩陣與 slip／guess（5 個 fold 合併；答錯為正類）", "8. 錯誤分析")
+    j = table_j_calibration()
+    for mt in ["LR", "RF"]:
+        T[f"j_calibration_{mt}"] = (j[mt], ["error_calibration.csv"], f"錯誤分析・校準（{mt}）：10 個等寬桶，R0d 與 R1 的列數、平均預測機率、實際答對率", "8. 錯誤分析")
+    T["j_calibration_ece"] = (j["ece"], ["error_calibration_ece.csv"], "錯誤分析・ECE（R0d、R1 × LR、RF）", "8. 錯誤分析")
+    T["k_high_confidence"] = (table_k_high_confidence(), ["error_high_conf_groups.csv", "error_high_conf_features.csv"], "錯誤分析・高信心錯誤兩群的列數、占比與特徵平均（vs 全部列）", "8. 錯誤分析")
     return {k: dict(df=v[0], sources=v[1], desc=v[2], candidate=v[3]) for k, v in T.items()}
 
 
