@@ -1,14 +1,14 @@
 """跨學校補充實驗：LR 的 R0（沒有 item_diff、last_correct）在學校群分組下，檢查 R0 → R0d 的增益能不能搬到新學校。
 
-    python3 src/run_xschool_r0.py > results/xschool_r0_run.log 2>&1
+    python3 src/run_xschool_r0.py > results/03_process/xschool_r0_run.log 2>&1
 規則在 CLAUDE.md「跨學校補充實驗」，跑之前登記，不依結果修改：
   * 分組沿用 data/split_groups.csv（35 組、5 fold），不重新產生；test 學生完全不碰。
   * R0 特徵 = R0_FEATURES；LR = StandardScaler + LogisticRegression(C=np.inf)。
-  * R0d 的各 fold ROC-AUC 沿用 results/xschool_a_folds.csv。C 的配對 bootstrap 需要 R0d 的逐列預測，
+  * R0d 的各 fold ROC-AUC 沿用 results/02_analysis/xschool_a_folds.csv。C 的配對 bootstrap 需要 R0d 的逐列預測，
     而那份預測當時沒有存，所以這裡把 LR 的 R0d 在同一組分組下重算一次（LR 是確定的），並確認各 fold AUC
     與 xschool_a_folds.csv 相同才繼續。
   * 判讀規則（A 的未加權 5 fold 平均 ΔAUC = R0d − R0）：≥ +0.06 可搬移；< +0.04 有相當比例是學校／班級效應；其間不下結論。
-輸出（results/xschool_r0_*.csv，只有彙總數字，沒有 user_id、school_id）。
+輸出（results/0*/xschool_r0_*.csv，只有彙總數字，沒有 user_id、school_id）。
 """
 import os
 import sys
@@ -40,9 +40,9 @@ def classify(delta_mean: float) -> str:
 
 def student_split_reference():
     """學生分組下的對照值：從既有 csv 重算（不使用四捨五入值）。"""
-    cv = pd.read_csv("results/r1_lr_cv.csv")
+    cv = pd.read_csv("results/02_analysis/r1_lr_cv.csv")
     cv = cv[(cv["eval"] == "A") & (cv["metric"] == "roc_auc")].set_index("model")
-    p = pd.read_csv("results/r1_lr_paired.csv")
+    p = pd.read_csv("results/02_analysis/r1_lr_paired.csv")
     p = p[(p["eval"] == "A") & (p["comparison"] == "R0d - R0")].iloc[0]
     ref = dict(r0=cv.at["R0", "value"], r0d=cv.at["R0d", "value"],
                diff_folds=p[FOLD_COLS].to_numpy(float), diff_mean=p["delta_auc"], diff_std=p["std"],
@@ -64,7 +64,7 @@ def main() -> None:
     r0d_oof = r0d.oof.assign(grp=r0d.oof["order_id"].map(grp_of).to_numpy())
 
     # R0d 的各 fold ROC-AUC 沿用 xschool_a_folds.csv；重算的必須與它相同
-    old = pd.read_csv("results/xschool_a_folds.csv")
+    old = pd.read_csv("results/02_analysis/xschool_a_folds.csv")
     old = old[(old.model_type == "LR") & (old.features == "R0d")].set_index("fold").sort_index()
     r0d_auc = old["roc_auc"]
     assert np.abs(per_fold_metric(r0d_oof).to_numpy() - r0d_auc.to_numpy()).max() < 1e-9, "重算的 R0d 與 xschool_a_folds.csv 不同"
@@ -77,14 +77,14 @@ def main() -> None:
 
     fold_tab = pd.DataFrame({"fold": roc.index, "n_rows": rows_per_fold.to_numpy().astype(int), "r0_roc_auc": roc.to_numpy(),
                              "r0_pr_auc": pr.to_numpy(), "r0d_roc_auc": r0d_auc.to_numpy(), "diff_roc_auc": d.to_numpy()})
-    fold_tab.to_csv("results/xschool_r0_a_folds.csv", index=False)
+    fold_tab.to_csv("results/02_analysis/xschool_r0_a_folds.csv", index=False)
     summary = pd.DataFrame([
         dict(item="R0 ROC-AUC", mean=roc.mean(), std=roc.std(ddof=1)),
         dict(item="R0 PR-AUC", mean=pr.mean(), std=pr.std(ddof=1)),
         dict(item="R0d ROC-AUC（沿用 xschool_a_folds.csv）", mean=r0d_auc.mean(), std=r0d_auc.std(ddof=1)),
         dict(item="R0d − R0 ROC-AUC（未加權平均）", mean=d.mean(), std=d.std(ddof=1), n_folds_better=int((d > 0).sum()),
              weighted_mean=weighted, verdict=verdict)])
-    summary.to_csv("results/xschool_r0_a_summary.csv", index=False)
+    summary.to_csv("results/02_analysis/xschool_r0_a_summary.csv", index=False)
 
     # ---- 學生分組對照並排
     ref = student_split_reference()
@@ -93,16 +93,16 @@ def main() -> None:
              diff_std=ref["diff_std"], n_folds_better=ref["n_better"], **{f"diff_fold{k}": v for k, v in enumerate(ref["diff_folds"])}),
         dict(split="學校群分組（本實驗）", r0_roc_auc=roc.mean(), r0d_roc_auc=r0d_auc.mean(), diff_mean=d.mean(),
              diff_std=d.std(ddof=1), n_folds_better=int((d > 0).sum()), **{f"diff_fold{k}": d[k] for k in d.index})])
-    side.to_csv("results/xschool_r0_vs_student_split.csv", index=False)
+    side.to_csv("results/02_analysis/xschool_r0_vs_student_split.csv", index=False)
 
-    big_fold = int(pd.read_csv("results/xschool_folds.csv").query("contains_largest_group").iloc[0]["fold"])
+    big_fold = int(pd.read_csv("results/01_preprocessing/xschool_folds.csv").query("contains_largest_group").iloc[0]["fold"])
     f0 = pd.DataFrame([dict(fold=big_fold, n_rows=int(rows_per_fold[big_fold]), r0_roc_auc=roc[big_fold],
                             r0d_roc_auc=r0d_auc[big_fold], diff_roc_auc=d[big_fold])])
-    f0.to_csv("results/xschool_r0_fold0.csv", index=False)
+    f0.to_csv("results/02_analysis/xschool_r0_fold0.csv", index=False)
 
     c = paired_delta_c(by_cluster(r0_oof), by_cluster(r0d_oof))   # Δ = R0d − R0；重抽單位 = 組別
     c = c.rename(columns={"delta_auc": "delta_roc_auc"})
-    c.to_csv("results/xschool_r0_paired_c.csv", index=False)
+    c.to_csv("results/02_analysis/xschool_r0_paired_c.csv", index=False)
 
     pd.set_option("display.width", 200)
     print("\n=== 判讀規則（事先登記）===")

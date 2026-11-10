@@ -49,14 +49,14 @@ def test_r0_under_student_folds_reproduces_existing_csv():
     full = load_r1_frame()
     tv = full[full["role"] == "trainval"].reset_index(drop=True)              # 原本的學生 fold
     res = run_cv(tv, R0_FEATURES, make_lr)
-    prev = pd.read_csv("results/r1_lr_cv.csv")
+    prev = pd.read_csv("results/02_analysis/r1_lr_cv.csv")
     prev = prev[(prev["model"] == "R0") & (prev["eval"] == "A")].set_index("metric")
     roc, pr = per_fold_metric(res.oof), per_fold_metric(res.oof, "pr_auc")
     assert abs(roc.mean() - prev.at["roc_auc", "value"]) < 1e-9
     assert abs(roc.std(ddof=1) - prev.at["roc_auc", "std"]) < 1e-9
     assert abs(pr.mean() - prev.at["pr_auc", "value"]) < 1e-9
     # 也和最早的 R0 結果（沒有 StandardScaler）在小數點三位一致
-    first = pd.read_csv("results/r0_lr_cv.csv")
+    first = pd.read_csv("results/02_analysis/r0_lr_cv.csv")
     first = first[(first["eval"] == "A") & (first.metric == "roc_auc")]["value"].iloc[0]
     assert round(roc.mean(), 3) == round(first, 3)
 

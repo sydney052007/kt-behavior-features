@@ -1,6 +1,6 @@
 """R1r（R1 + 4 個相對於題目平均的行為特徵）與 R0d_rel（R0d + 同樣 4 個）的 LR 與 RF 評估。
 
-    python3 src/run_r1r.py > results/r1r_run.log 2>&1
+    python3 src/run_r1r.py > results/03_process/r1r_run.log 2>&1
 事先決定、不依結果修改：
   * 模型：LR（StandardScaler + LogisticRegression(C=np.inf)）；RF（300 棵、sqrt、種子 42、n_jobs=-1，
     網格 max_depth ∈ {8,16,None} × min_samples_leaf ∈ {5,20,50}，共 9 組），選擇只看 5-fold 的 A ROC-AUC 平均。
@@ -9,7 +9,7 @@
   * 判準：以 RF 的 A 為準，R1r − R1（各自最佳設定）的平均 ΔAUC ≥ +0.002 且至少 4/5 個 fold 較好
     → 『R1 的改良版』；否則 → 『沒有明顯改善的變體』。
 
-輸出（results/，只有彙總數字）：
+輸出（results/ 的子資料夾，只有彙總數字；索引見 results/INDEX.md）：
     r1r_new_features.csv  r1r_a_summary.csv  r1r_rf_grid.csv  r1r_cv.csv
     r1r_paired.csv        r1r_verdict.csv    r1r_perm_importance.csv
 """
@@ -82,7 +82,7 @@ def main() -> None:
     nf = pd.DataFrame({"mean": o[REL_FEATURES].mean(), "std": o[REL_FEATURES].std(), "min": o[REL_FEATURES].min(),
                        "max": o[REL_FEATURES].max(), "corr_correct": o[REL_FEATURES].corrwith(o["correct"])})
     nf.index.name = "feature"
-    nf.reset_index().to_csv("results/r1r_new_features.csv", index=False)
+    nf.reset_index().to_csv("results/01_preprocessing/r1r_new_features.csv", index=False)
     print("\n=== 1. 4 個新特徵（5 個 fold 的驗證列合併 = trainval 30,516 列）===")
     print(nf.round(4).to_string(), flush=True)
 
@@ -103,12 +103,12 @@ def main() -> None:
                   f"   (累計 {time.time() - t0:.0f}s)", flush=True)
     grid = pd.DataFrame(grid_rows)
     grid["is_best"] = grid.groupby("features")["roc_auc_mean"].transform("max") == grid["roc_auc_mean"]
-    grid.to_csv("results/r1r_rf_grid.csv", index=False)
+    grid.to_csv("results/03_process/r1r_rf_grid.csv", index=False)
     best = {n: max(GRID, key=lambda c: per_fold_metric(rf_res[(n, c)].oof).mean()) for n in VARIANTS}
 
     # ---- 參考組 R1、R0d（沿用既有結果；RF 只重跑各自最佳設定並確認可重現）
     # max_depth 欄有字串 "None"，不能讓 pandas 把它當缺失值
-    old_grid = pd.read_csv("results/rf_grid_auc.csv", dtype={"max_depth": str}, keep_default_na=False)
+    old_grid = pd.read_csv("results/03_process/rf_grid_auc.csv", dtype={"max_depth": str}, keep_default_na=False)
     ref_cfg = {}
     for n in ["R1", "R0d"]:
         r = old_grid[(old_grid.features == n) & old_grid.is_best].iloc[0]
@@ -123,11 +123,11 @@ def main() -> None:
         rf_ref[n] = res
         print(f"[reproduce] RF {n} {cfg_name(ref_cfg[n])}：各 fold AUC 與先前結果最大差 {diff:.1e}  OK", flush=True)
     lr_ref = {n: pd.read_csv(f"data/interim/oof_cmp_{n}.csv") for n in ["R1", "R0d"]}
-    prev = pd.read_csv("results/r1_lr_cv.csv")
+    prev = pd.read_csv("results/02_analysis/r1_lr_cv.csv")
     for n in ["R1", "R0d"]:
         old = prev[(prev.model == n) & (prev["eval"] == "A") & (prev.metric == "roc_auc")]["value"].iloc[0]
         assert abs(per_fold_metric(lr_ref[n]).mean() - old) < 1e-9
-    print("[reproduce] LR R1／R0d 的 OOF 與 results/r1_lr_cv.csv 一致  OK", flush=True)
+    print("[reproduce] LR R1／R0d 的 OOF 與 results/02_analysis/r1_lr_cv.csv 一致  OK", flush=True)
 
     # ---- 2. A 的彙總 + A／B／C 全部報告
     models = {("LR", n): (lr[n], VARIANTS[n], "StandardScaler+LR") for n in VARIANTS}
@@ -147,8 +147,8 @@ def main() -> None:
         summary.append(dict(model_type=mt, features=n + "（參考）", n_features=len(R1_FEATURES if n == "R1" else R0D_FEATURES),
                             setting=cfg, roc_auc_mean=a.mean(), roc_auc_std=a.std(ddof=1), pr_auc_mean=p.mean(), pr_auc_std=p.std(ddof=1)))
     summary = pd.DataFrame(summary)
-    summary.to_csv("results/r1r_a_summary.csv", index=False)
-    pd.concat(tables, ignore_index=True).to_csv("results/r1r_cv.csv", index=False)
+    summary.to_csv("results/02_analysis/r1r_a_summary.csv", index=False)
+    pd.concat(tables, ignore_index=True).to_csv("results/02_analysis/r1r_cv.csv", index=False)
     print("\n=== 2. A ROC-AUC／PR-AUC（5 個 fold 平均 ± 標準差；RF 為各自最佳設定）===")
     for _, r in summary.iterrows():
         print(f"  {r.model_type} {r.features:10s} ROC {r.roc_auc_mean:.4f} ± {r.roc_auc_std:.4f}   "
@@ -159,7 +159,7 @@ def main() -> None:
         for _, r in grid[grid.features == n].iterrows():
             print(f"      depth={r.max_depth}, leaf={r.min_samples_leaf:<3d} {r.roc_auc_mean:.4f} ± {r.roc_auc_std:.4f}{'  *' if r.is_best else ''}")
     a_tab = pd.concat(tables)
-    print("\n  F1／Accuracy／B／C 全部寫在 results/r1r_cv.csv（A 的 F1、Accuracy：）")
+    print("\n  F1／Accuracy／B／C 全部寫在 results/02_analysis/r1r_cv.csv（A 的 F1、Accuracy：）")
     for (mt, n), _ in models.items():
         t = a_tab[(a_tab.model_type == mt) & (a_tab.features == n) & (a_tab["eval"] == "A")].set_index("metric")
         print(f"    {mt} {n:8s} F1 {t.at['f1', 'value']:.4f} ± {t.at['f1', 'std']:.4f}   Accuracy {t.at['accuracy', 'value']:.4f} ± {t.at['accuracy', 'std']:.4f}")
@@ -177,7 +177,7 @@ def main() -> None:
     paired += pair_rows("todo_pr", "LR", "R1", "R0d", lr_ref["R1"], lr_ref["R0d"], "pr_auc")
     paired += pair_rows("todo_pr", "RF", "R1", "R0d", rf_ref["R1"].oof, rf_ref["R0d"].oof, "pr_auc")
     paired = pd.DataFrame(paired)
-    paired.to_csv("results/r1r_paired.csv", index=False)
+    paired.to_csv("results/02_analysis/r1r_paired.csv", index=False)
     print("\n=== 3./4. 配對差異（Δ = 左 − 右）===")
     for _, r in paired[paired["eval"] == "A"].iterrows():
         print(f"  [{r.analysis}] {r.model_type} A {r.metric:7s} {r.comparison:14s} [" + ", ".join(f"{r[f]:+.4f}" for f in FOLD_COLS) +
@@ -190,7 +190,7 @@ def main() -> None:
     ok = (v.delta >= MIN_DELTA) and (v.n_folds_better >= MIN_FOLDS)
     verdict = "R1 的改良版" if ok else "沒有明顯改善的變體"
     pd.DataFrame([dict(rule=f"RF 的 A：R1r − R1 平均 ΔAUC ≥ {MIN_DELTA:+.3f} 且至少 {MIN_FOLDS}/5 fold 較好", delta_auc=v.delta,
-                       n_folds_better=int(v.n_folds_better), verdict=verdict)]).to_csv("results/r1r_verdict.csv", index=False)
+                       n_folds_better=int(v.n_folds_better), verdict=verdict)]).to_csv("results/02_analysis/r1r_verdict.csv", index=False)
     print(f"\n=== 判準：RF 的 A，R1r − R1 平均 ΔAUC = {v.delta:+.4f}（門檻 ≥ {MIN_DELTA:+.3f}），較好 {int(v.n_folds_better)}/5（門檻 ≥ {MIN_FOLDS}）"
           f" → 【{verdict}】", flush=True)
 
@@ -216,11 +216,11 @@ def main() -> None:
     perm.columns = FOLD_COLS
     perm.insert(0, "mean", perm[FOLD_COLS].mean(axis=1)); perm.insert(1, "std", perm[FOLD_COLS].std(axis=1, ddof=1))
     perm.index.name = "group"
-    perm.reset_index().to_csv("results/r1r_perm_importance.csv", index=False)
+    perm.reset_index().to_csv("results/02_analysis/r1r_perm_importance.csv", index=False)
     print(f"\n=== 5. R1r 的 permutation importance（RF {cfg_name(best['R1r'])}；AUC 下降量，5 個 fold 平均 ± 標準差；診斷用）===")
     for g, r in perm.iterrows():
         print(f"  {g:13s} {r['mean']:+.4f} ± {r['std']:.4f}")
-    print(f"\n[r1r] 完成，共 {(time.time() - t0) / 60:.1f} 分鐘；已存 results/r1r_*.csv", flush=True)
+    print(f"\n[r1r] 完成，共 {(time.time() - t0) / 60:.1f} 分鐘；已存 results/0*/r1r_*.csv", flush=True)
 
 
 if __name__ == "__main__":

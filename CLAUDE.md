@@ -23,7 +23,7 @@
 - **目標列自己的 `hint_count`、`first_action`、`attempt_count`、`ms_first_response`、`overlap_time`、`bottom_hint` 永遠不能當特徵**
   （`hint_count>0` 或 `first_action∈{1,2}` 時 `correct` 必為 0，沒有例外）。
 - 切分：以 `user_id` 分組，跨兩個技能一起切（443 位學生兩個技能都做）。先留 15% test，最後只跑一次；其餘 5-fold GroupKFold。
-- 切分已產生：`src/make_split.py`（SEED=42，test 用總題數分箱分層抽樣）→ `data/interim/split_users.csv`（user_id, role=test/trainval, fold=0–4；test 的 fold=-1）。彙總在 `results/split_summary.txt`。**不要為了分數換種子。** 之後所有實驗讀這個檔，不要重新切。
+- 切分已產生：`src/make_split.py`（SEED=42，test 用總題數分箱分層抽樣）→ `data/interim/split_users.csv`（user_id, role=test/trainval, fold=0–4；test 的 fold=-1）。彙總在 `results/01_preprocessing/split_summary.txt`。**不要為了分數換種子。** 之後所有實驗讀這個檔，不要重新切。
 - 題目難度、作答時間的百分位與中位數只用訓練學生算。
 - 作答時間：≤0 標缺失 → 訓練集第 99 百分位截斷 → log → 除以該題訓練集中位數。
 - 評估三種：A 全部列（主要）、B 位置分桶（1、2–4、5–10、11+）、C 固定切點（只用在驗證／測試）。**切點固定為 t=6、t=11，程式仍把 k 寫成參數，不要寫死。**
@@ -50,12 +50,12 @@
   - 特徵 R0d 與 R1（`features_r1.py` 不改）；item_diff 的 inner 5-fold 改成依同一個組別分組；驗證列用完整訓練集的題目統計，沒見過的題目用 p̄。
   - 模型：LR = StandardScaler + LogisticRegression(C=np.inf)；RF = 300 棵、sqrt、種子 42、n_jobs=-1，R0d 用 max_depth=8、min_samples_leaf=5，R1 用 max_depth=None、min_samples_leaf=50，不重新搜尋。
   - 評估 A／B／C（t=6、11）全部報告；R1 − R0d 的配對比較（LR 與 RF）：A 報各 fold 差值、未加權平均、標準差、較好 fold 數與列數加權平均；C 的 cluster bootstrap 以『組別』為單位（2000 次、種子 42）。另報驗證列中訓練集沒出現過的 `problem_id` 比例（跨學校與學生分組各一份），並單獨列出最大組所在 fold 的 R0d、R1 AUC 與差值。
-  - 結果只放彙總（`results/xschool_*.csv`），不放 user_id、school_id。
+  - 結果只放彙總（`results/0*/xschool_*.csv`），不放 user_id、school_id。
 - 跨學校補充實驗（R0 → R0d 的增益能不能搬到新學校；跑之前登記，不得因結果修改；test 的 262 位學生完全不碰）：
   - 比較：LR 的 R0d − R0（同為 StandardScaler + LogisticRegression(C=np.inf)），在學校群分組 5-fold（沿用 `data/split_groups.csv`，不重新產生）下的 A ROC-AUC。R0 特徵 = `R0_FEATURES`（log1p_c、log1p_w、skill_311、has_history），不含 item_diff、last_correct。
-  - 學生分組下的對照值從 `results/r1_lr_cv.csv`、`results/r1_lr_paired.csv` 重算並印出實際數字（約 +0.078，不使用四捨五入值）。
+  - 學生分組下的對照值從 `results/02_analysis/r1_lr_cv.csv`、`results/02_analysis/r1_lr_paired.csv` 重算並印出實際數字（約 +0.078，不使用四捨五入值）。
   - 判讀規則（A 的未加權 5 fold 平均 ΔAUC）：≥ +0.06 → item_diff 的增益大部分可搬移到新學校；< +0.04 → item_diff 有相當比例是學校／班級效應；介於兩者 → 照實報告，不下結論。
-  - 報告：R0 各 fold 的 ROC-AUC、PR-AUC 與平均 ± 標準差；R0d（沿用 `xschool_a_folds.csv`，不重跑）− R0 的各 fold 差值、未加權平均、標準差、較好 fold 數、列數加權平均；學生分組與學校分組的並排表；最大組所在 fold 的單獨數字；C（t=6、t=11）的 R0d − R0 配對 ΔAUC 與 95% CI（組別為單位的 cluster bootstrap，2000 次、種子 42）。結果放 `results/xschool_r0_*.csv`。
+  - 報告：R0 各 fold 的 ROC-AUC、PR-AUC 與平均 ± 標準差；R0d（沿用 `xschool_a_folds.csv`，不重跑）− R0 的各 fold 差值、未加權平均、標準差、較好 fold 數、列數加權平均；學生分組與學校分組的並排表；最大組所在 fold 的單獨數字；C（t=6、t=11）的 R0d − R0 配對 ΔAUC 與 95% CI（組別為單位的 cluster bootstrap，2000 次、種子 42）。結果放 `results/0*/xschool_r0_*.csv`。
 
 ## 尚未決定（不要自己決定，遇到時回報）
 - （目前沒有）
@@ -65,9 +65,9 @@
 - 到目前為止嘗試過的 R1 特徵版本數 = **2**（R1、R1r）。之後若再加特徵變體，要在這裡累計並在報告說明。
 - RF 超參數：每個特徵集（R0、R0d、R1、R1r、R0d_rel）都試過 9 組（`max_depth` ∈ {8, 16, None} × `min_samples_leaf` ∈ {5, 20, 50}）；最佳設定的選擇只看 5-fold 的 A ROC-AUC 平均，所以最佳設定的 A 略偏樂觀（選擇與評估用同樣的 5 個 fold）。LR 沒有超參數網格。
 - R1r 的判準（跑之前寫死，不得因結果修改）：以 RF 的 A 為準，R1r − R1（各自最佳設定）的平均 ΔAUC ≥ +0.002 且至少 4/5 個 fold 較好 → 列為「R1 的改良版」；否則列為「沒有明顯改善的變體」。
-- R1r 的結果：RF 的 A，R1r − R1 平均 ΔAUC = +0.0054，5/5 個 fold 較好 → 依判準列為「R1 的改良版」。LR 的 R1r − R1 = +0.0030（5/5）。數字見 `results/r1r_*.csv`。因為 R1r 是事後設計的，報告要同時呈現 R1 與 R1r，不能只放 R1r。
+- R1r 的結果：RF 的 A，R1r − R1 平均 ΔAUC = +0.0054，5/5 個 fold 較好 → 依判準列為「R1 的改良版」。LR 的 R1r − R1 = +0.0030（5/5）。數字見 `results/0*/r1r_*.csv`。因為 R1r 是事後設計的，報告要同時呈現 R1 與 R1r，不能只放 R1r。
 
 ## 工作方式
 - 程式碼要讓大學部學生看得懂，關鍵步驟寫註解。
-- 實驗結果輸出到 `results/`（csv 存數字）；EDA 彙總輸出在 `results/eda_w1/`。
+- 實驗結果輸出到 `results/` 的子資料夾（`01_preprocessing`、`02_analysis`、`03_process`、`04_exports`；索引見 `results/INDEX.md`，檔案搬移對照見 `results/MOVED.csv`）；EDA 彙總輸出在 `results/01_preprocessing/eda_w1/`。
 - 先 `source` 虛擬環境再跑；套件見 `requirements.txt`。

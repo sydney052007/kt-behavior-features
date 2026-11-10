@@ -6,9 +6,9 @@
 用 make_fold_features(train, val) 各算一次（統計量只來自該 fold 的訓練列）。
 
 輸出（都只有彙總數字）：
-    results/r1_lr_cv.csv       三組 × A／B／C（長格式，多一欄 model）
-    results/r1_lr_paired.csv   配對差異（A 的逐 fold ΔAUC、C 的配對 bootstrap ΔAUC）
-    results/r1_lr_coef.csv     R1 標準化後的 LR 係數（5 個 fold 的平均與標準差）
+    results/02_analysis/r1_lr_cv.csv       三組 × A／B／C（長格式，多一欄 model）
+    results/02_analysis/r1_lr_paired.csv   配對差異（A 的逐 fold ΔAUC、C 的配對 bootstrap ΔAUC）
+    results/02_analysis/r1_lr_coef.csv     R1 標準化後的 LR 係數（5 個 fold 的平均與標準差）
 OOF 預測（學生層級）存 data/interim/oof_cmp_<model>.csv，不進 git。
 """
 import os
@@ -29,7 +29,7 @@ from features import R0_FEATURES  # noqa: E402
 from features_r1 import R0D_FEATURES, R1_FEATURES, load_r1_frame, make_fold_features  # noqa: E402
 
 FEATURE_SETS = {"R0": R0_FEATURES, "R0d": R0D_FEATURES, "R1": R1_FEATURES}
-R0_REFERENCE = "results/r0_lr_cv.csv"      # 之前（沒有 StandardScaler）的 R0 結果，用來確認數字不變
+R0_REFERENCE = "results/02_analysis/r0_lr_cv.csv"      # 之前（沒有 StandardScaler）的 R0 結果，用來確認數字不變
 
 
 def make_model():
@@ -81,7 +81,7 @@ def main() -> None:
                 sys.exit(1)
             print("[r1_lr] 檢查通過：R0 + StandardScaler 的 A 與之前一致（小數點三位）")
     table = pd.concat(tables, ignore_index=True)
-    table.to_csv("results/r1_lr_cv.csv", index=False)
+    table.to_csv("results/02_analysis/r1_lr_cv.csv", index=False)
 
     # ---- 配對差異
     pairs = [("R0d", "R0"), ("R1", "R0d")]                  # (new, old)
@@ -98,13 +98,13 @@ def main() -> None:
             paired.append(dict(eval="C", comparison=f"{new} - {old}", group=r["group"],
                                delta_auc=r["delta_auc"], ci_low=r["ci_low"], ci_high=r["ci_high"]))
     paired = pd.DataFrame(paired)
-    paired.to_csv("results/r1_lr_paired.csv", index=False)
+    paired.to_csv("results/02_analysis/r1_lr_paired.csv", index=False)
 
     # ---- R1 係數（標準化後；每個 fold 一組）
     coef = pd.DataFrame([m.named_steps["lr"].coef_[0] for m in results["R1"].models],
                         columns=R1_FEATURES)
     coef_sum = pd.DataFrame({"mean": coef.mean(), "std": coef.std(ddof=1)})
-    coef_sum.to_csv("results/r1_lr_coef.csv")
+    coef_sum.to_csv("results/02_analysis/r1_lr_coef.csv")
 
     # ---- 印出
     pd.set_option("display.width", 220)
@@ -149,7 +149,7 @@ def main() -> None:
     print("\n=== R1 的 LR 係數（標準化後，5 個 fold 的平均 ± 標準差）===")
     for f_, r in coef_sum.iterrows():
         print(f"  {f_:14s} {r['mean']:+.4f} ± {r['std']:.4f}")
-    print("\n[r1_lr] 已存 results/r1_lr_cv.csv、r1_lr_paired.csv、r1_lr_coef.csv")
+    print("\n[r1_lr] 已存 results/02_analysis/r1_lr_cv.csv、r1_lr_paired.csv、r1_lr_coef.csv")
 
 
 if __name__ == "__main__":

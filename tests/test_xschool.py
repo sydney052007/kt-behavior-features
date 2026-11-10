@@ -138,7 +138,7 @@ def test_xschool_features_equal_student_version_when_inner_is_the_same():
 def test_lr_under_student_folds_reproduces_existing_csv():
     full = load_r1_frame()
     tv = full[full["role"] == "trainval"].reset_index(drop=True)      # 原本的學生 fold
-    prev = pd.read_csv("results/r1_lr_cv.csv")
+    prev = pd.read_csv("results/02_analysis/r1_lr_cv.csv")
     prev = prev[(prev["eval"] == "A")].set_index(["model", "metric"])
     from evaluate import per_fold_metric
     for name, feats in [("R0d", R0D_FEATURES), ("R1", R1_FEATURES)]:

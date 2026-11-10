@@ -1,12 +1,12 @@
 """跨學校 5-fold：R0d vs R1，LR 與 RF（規則在 CLAUDE.md「跨學校實驗規則」，跑之前登記，不依結果修改）。
 
     python3 src/make_xschool_groups.py      # 步驟 0：分組（只需做一次）
-    python3 src/run_xschool.py > results/xschool_run.log 2>&1
+    python3 src/run_xschool.py > results/03_process/xschool_run.log 2>&1
 模型（固定，不搜尋）：LR = StandardScaler + LogisticRegression(C=np.inf)；
 RF = 300 棵、sqrt、種子 42、n_jobs=-1；R0d 用 max_depth=8、min_samples_leaf=5；R1 用 max_depth=None、min_samples_leaf=50。
 評估：A（每個 fold）、B 位置分桶、C 固定切點 t=6／11（C 的 cluster bootstrap 以『組別』為單位）。
 
-輸出（results/xschool_*.csv，只有彙總數字，沒有 user_id、school_id）：
+輸出（results/0*/xschool_*.csv，只有彙總數字，沒有 user_id、school_id）：
     xschool_cv.csv  xschool_a_folds.csv  xschool_paired.csv  xschool_fold0.csv  xschool_unseen_problems.csv
 """
 import os
@@ -106,9 +106,9 @@ def main() -> None:
         for _, r in ft.iterrows():
             fold_rows.append(dict(meta, **r.to_dict()))
     cv = pd.DataFrame(cv_rows)
-    cv.to_csv("results/xschool_cv.csv", index=False)
+    cv.to_csv("results/02_analysis/xschool_cv.csv", index=False)
     folds = pd.DataFrame(fold_rows)
-    folds.to_csv("results/xschool_a_folds.csv", index=False)
+    folds.to_csv("results/02_analysis/xschool_a_folds.csv", index=False)
 
     pd.set_option("display.width", 220)
     print("\n=== A 全部列（5 個 fold 平均 ± 標準差）===")
@@ -141,7 +141,7 @@ def main() -> None:
     for mt in ["LR", "RF"]:
         paired += pair_rows(mt, "R1", "R0d", runs[(mt, "R1")].oof, runs[(mt, "R0d")].oof, weights)
     paired = pd.DataFrame(paired)
-    paired.to_csv("results/xschool_paired.csv", index=False)
+    paired.to_csv("results/02_analysis/xschool_paired.csv", index=False)
     print("\n=== 配對差異 R1 − R0d（ΔAUC）===")
     for _, r in paired[paired["eval"] == "A"].iterrows():
         print(f"  {r.model_type} A 各 fold [" + ", ".join(f"{r[f]:+.4f}" for f in FOLD_COLS) +
@@ -150,7 +150,7 @@ def main() -> None:
         print(f"  {r.model_type} C {r.group:5s} {r.delta:+.4f}  [{r.ci_low:+.4f}, {r.ci_high:+.4f}]")
 
     # ---- 最大組所在 fold
-    big_fold = int(pd.read_csv("results/xschool_folds.csv").query("contains_largest_group").iloc[0]["fold"])
+    big_fold = int(pd.read_csv("results/01_preprocessing/xschool_folds.csv").query("contains_largest_group").iloc[0]["fold"])
     f0 = []
     for mt in ["LR", "RF"]:
         r0 = folds[(folds.model_type == mt) & (folds.features == "R0d") & (folds.fold == big_fold)].iloc[0]
@@ -159,7 +159,7 @@ def main() -> None:
                        delta_roc_auc=r1.roc_auc - r0.roc_auc, pr_auc_R0d=r0.pr_auc, pr_auc_R1=r1.pr_auc,
                        delta_pr_auc=r1.pr_auc - r0.pr_auc))
     f0 = pd.DataFrame(f0)
-    f0.to_csv("results/xschool_fold0.csv", index=False)
+    f0.to_csv("results/02_analysis/xschool_fold0.csv", index=False)
     print(f"\n=== 最大組所在的 fold（fold {big_fold}）===")
     print(f0.round(4).to_string(index=False))
 
@@ -173,11 +173,11 @@ def main() -> None:
             row[f"{tag}_val_rows"], row[f"{tag}_unseen_rows"], row[f"{tag}_unseen_frac"] = len(va), int(unseen.sum()), unseen.mean()
         rows.append(row)
     un = pd.DataFrame(rows)
-    un.to_csv("results/xschool_unseen_problems.csv", index=False)
+    un.to_csv("results/01_preprocessing/xschool_unseen_problems.csv", index=False)
     print("\n=== 驗證列中『訓練集沒出現過的 problem_id』的比例 ===")
     print(un[["fold", "xschool_val_rows", "xschool_unseen_rows", "xschool_unseen_frac",
               "student_split_val_rows", "student_split_unseen_rows", "student_split_unseen_frac"]].round(4).to_string(index=False))
-    print(f"\n[xschool] 完成，共 {(time.time() - t0) / 60:.1f} 分鐘；已存 results/xschool_*.csv", flush=True)
+    print(f"\n[xschool] 完成，共 {(time.time() - t0) / 60:.1f} 分鐘；已存 results/0*/xschool_*.csv", flush=True)
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@
     python3 src/make_xschool_groups.py
 停損（規則在 CLAUDE.md）：併完最大組超過 trainval 列數的 40%，或組數少於 5 → 印出原因並結束，不寫檔。
 data/split_groups.csv 已存在時不重新產生：只重新計算並確認與檔案內容完全相同。
-輸出（results/，只有彙總）：xschool_groups.csv、xschool_folds.csv
+輸出（results/01_preprocessing/，只有彙總）：xschool_groups.csv、xschool_folds.csv
 """
 import os
 import sys
@@ -49,13 +49,13 @@ def main() -> None:
             dict(item="最大組內學校數", value=big["schools"])]
     rows += [dict(item=f"各組學生數_{k}", value=v) for k, v in q(g["students"]).items()]
     rows += [dict(item=f"各組列數_{k}", value=v) for k, v in q(g["rows"]).items()]
-    pd.DataFrame(rows).to_csv("results/xschool_groups.csv", index=False)
+    pd.DataFrame(rows).to_csv("results/01_preprocessing/xschool_groups.csv", index=False)
 
     tv["xfold"] = tv["grp"].map(gfold)
     folds = tv.groupby("xfold").agg(groups=("grp", "nunique"), students=("user_id", "nunique"), rows=("correct", "size"),
                                     wrong_rate=("correct", lambda x: 1 - x.mean())).reset_index().rename(columns={"xfold": "fold"})
     folds["contains_largest_group"] = folds["fold"] == gfold[g["rows"].idxmax()]
-    folds.to_csv("results/xschool_folds.csv", index=False)
+    folds.to_csv("results/01_preprocessing/xschool_folds.csv", index=False)
 
     pd.set_option("display.width", 200)
     print("\n各組的學生數與列數分布（35 組）")

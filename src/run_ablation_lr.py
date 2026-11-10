@@ -6,9 +6,9 @@
 所有 Δ 都是「該組 − 參考組」：減法 ablation 的 Δ 為負，代表拿掉那組特徵會變差。
 
 輸出（只有彙總數字）：
-    results/ablation_lr_cv.csv      每組的 A／B／C（長格式，多一欄 model）
-    results/ablation_lr_paired.csv  每個 (組, 參考組) 的配對 ΔAUC（A 逐 fold、C 配對 bootstrap）
-    results/ablation_lr_steps.csv   R0 → R0d → R1 每一步的 ΔAUC
+    results/02_analysis/ablation_lr_cv.csv      每組的 A／B／C（長格式，多一欄 model）
+    results/02_analysis/ablation_lr_paired.csv  每個 (組, 參考組) 的配對 ΔAUC（A 逐 fold、C 配對 bootstrap）
+    results/02_analysis/ablation_lr_steps.csv   R0 → R0d → R1 每一步的 ΔAUC
 """
 import os
 import sys
@@ -64,7 +64,7 @@ COMPARISONS = [
     ("R1-hint", "R1"), ("R1-time", "R1"), ("R1-att", "R1"), ("R1-scaffold", "R1"),
 ]
 STEPS = [("R0d", "R0"), ("R1", "R0d"), ("R1", "R0")]     # R0 → R0d → R1，最後一列是總和
-PREV_RESULT = "results/r1_lr_cv.csv"
+PREV_RESULT = "results/02_analysis/r1_lr_cv.csv"
 
 
 def caching_builder():
@@ -126,7 +126,7 @@ def main() -> None:
         t.insert(0, "model", name)
         tables.append(t)
     table = pd.concat(tables, ignore_index=True)
-    table.to_csv("results/ablation_lr_cv.csv", index=False)
+    table.to_csv("results/02_analysis/ablation_lr_cv.csv", index=False)
 
     # 與上一輪 run_r1_lr.py 的 R0／R0d／R1 結果核對（A 的 AUC 到小數點四位）
     prev = pd.read_csv(PREV_RESULT)
@@ -138,10 +138,10 @@ def main() -> None:
     print("[ablation] 核對通過：R0／R0d／R1 的 A 與 run_r1_lr.py 的結果一致（小數點四位）")
 
     paired = pd.DataFrame([r for new, ref in COMPARISONS for r in compare(results, new, ref)])
-    paired.to_csv("results/ablation_lr_paired.csv", index=False)
+    paired.to_csv("results/02_analysis/ablation_lr_paired.csv", index=False)
     steps = pd.DataFrame([dict(step=f"{ref} -> {new}", **{k: v for k, v in r.items() if k not in ("model", "reference")})
                           for new, ref in STEPS for r in compare(results, new, ref)])
-    steps.to_csv("results/ablation_lr_steps.csv", index=False)
+    steps.to_csv("results/02_analysis/ablation_lr_steps.csv", index=False)
 
     # ---- 印出
     pd.set_option("display.width", 220)
@@ -175,7 +175,7 @@ def main() -> None:
     print("\n=== 收斂警告次數 ===")
     bad = {n: k for n, (_, k) in results.items() if k}
     print("  全部 0 次" if not bad else f"  {bad}")
-    print("\n[ablation] 已存 results/ablation_lr_cv.csv、ablation_lr_paired.csv、ablation_lr_steps.csv")
+    print("\n[ablation] 已存 results/02_analysis/ablation_lr_cv.csv、ablation_lr_paired.csv、ablation_lr_steps.csv")
 
 
 if __name__ == "__main__":

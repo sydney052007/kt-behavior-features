@@ -1,11 +1,11 @@
 """RandomForest：R0／R0d／R1 × 9 組超參數（W3-B）。特徵不變，只換模型。
 
-    python3 src/run_rf.py > results/rf_run.log 2>&1
+    python3 src/run_rf.py > results/03_process/rf_run.log 2>&1
 模型：RandomForestClassifier(n_estimators=300, max_features="sqrt", random_state=42, n_jobs=-1)，不縮放。
 網格（事先固定）：max_depth ∈ {8, 16, None} × min_samples_leaf ∈ {5, 20, 50}，共 9 組，每組特徵都跑全部。
 選擇準則只看 5-fold 的 A ROC-AUC 平均；之後不因結果調整任何設定。
 
-輸出（只有彙總數字，results/ 底下）：
+輸出（只有彙總數字，results/ 的子資料夾；索引見 results/INDEX.md）：
     rf_grid_auc.csv          3 組特徵 × 9 組超參數的 A ROC-AUC（含各 fold，標出最佳）
     rf_cv.csv                各組最佳設定的 A／B／C（長格式）
     rf_paired.csv            配對差異（各自最佳設定；以及『用 R0d 最佳設定套到全部』的穩健性檢查）
@@ -42,7 +42,7 @@ PERM_GROUPS = {
     "att": ["mean_log_att", "last_log_att"],
     "scaffold": ["scaffold_rate"],
 }
-LR_CV, LR_PAIRED = "results/r1_lr_cv.csv", "results/r1_lr_paired.csv"
+LR_CV, LR_PAIRED = "results/02_analysis/r1_lr_cv.csv", "results/02_analysis/r1_lr_paired.csv"
 FOLD_COLS = [f"fold{k}" for k in range(5)]
 
 
@@ -143,7 +143,7 @@ def main() -> None:
 
     # ---- 2. 完整網格 + 最佳設定
     grid = grid_table(results)
-    grid.to_csv("results/rf_grid_auc.csv", index=False)
+    grid.to_csv("results/03_process/rf_grid_auc.csv", index=False)
     best = best_cfgs(results)
     print("\n=== 3 組特徵 × 9 組超參數：A ROC-AUC 平均（* = 該組最佳）===")
     pivot = grid.assign(cfg=lambda d: "depth=" + d.max_depth + ", leaf=" + d.min_samples_leaf.astype(str))
@@ -162,7 +162,7 @@ def main() -> None:
         t.insert(2, "min_samples_leaf", cfg[1])
         tables.append(t)
     table = pd.concat(tables, ignore_index=True)
-    table.to_csv("results/rf_cv.csv", index=False)
+    table.to_csv("results/02_analysis/rf_cv.csv", index=False)
     pd.set_option("display.width", 220)
     a = table[table["eval"] == "A"]
     print("\n=== A 全部列（各組最佳設定；5 個 fold 平均 ± 標準差）===")
@@ -191,7 +191,7 @@ def main() -> None:
     for new, ref in [("R0d", "R0"), ("R1", "R0d")]:
         paired += paired_rows("R0d_best_cfg_for_all", new, ref, results[(new, cfg_d)], results[(ref, cfg_d)])
     paired = pd.DataFrame(paired)
-    paired.to_csv("results/rf_paired.csv", index=False)
+    paired.to_csv("results/02_analysis/rf_paired.csv", index=False)
     print("\n=== 配對 ΔAUC ===")
     for _, r in paired[paired["eval"] == "A"].iterrows():
         print(f"  [{r['analysis']}] A {r['comparison']:9s} 各 fold [" + ", ".join(f"{r[f]:+.4f}" for f in FOLD_COLS) +
@@ -221,7 +221,7 @@ def main() -> None:
                      lr_folds_better=int(lrp["n_folds_better"]), rf_folds_better=int(rf_d2["n_folds_better"]),
                      **{f"lr_{f}": lrp[f] for f in FOLD_COLS}, **{f"rf_{f}": rf_d2[f] for f in FOLD_COLS}))
     side = pd.DataFrame(side)
-    side.to_csv("results/rf_vs_lr.csv", index=False)
+    side.to_csv("results/02_analysis/rf_vs_lr.csv", index=False)
     print("\n=== RF 與 LR 並排（A）===")
     for _, r in side.iterrows():
         print(f"  {r['item']:18s} LR {r.lr_mean:+.4f} ± {r.lr_std:.4f} | RF {r.rf_mean:+.4f} ± {r.rf_std:.4f}  ({r.rf_setting})")
@@ -232,12 +232,12 @@ def main() -> None:
     # （n_jobs=-1 的多執行緒加總有約 1e-16 的浮點誤差，所以比到 1e-12，不要求逐位元組相同）
     assert np.abs(res_best.oof["p_correct"].to_numpy() - results[("R1", best["R1"])].oof["p_correct"].to_numpy()).max() < 1e-12, \
         "R1 最佳設定重跑結果與網格不同"
-    perm.to_csv("results/rf_perm_importance.csv", index=False)
+    perm.to_csv("results/02_analysis/rf_perm_importance.csv", index=False)
     print(f"\n=== R1 最佳設定（{cfg_name(best['R1'])}）的 permutation importance：AUC 下降量（5 個 fold 平均 ± 標準差；診斷用）===")
     for _, r in perm.iterrows():
         print(f"  {r['group']:13s} {r['mean']:+.4f} ± {r['std']:.4f}")
 
-    print(f"\n[rf] 完成，共 {(time.time() - t0) / 60:.1f} 分鐘；已存 results/rf_*.csv", flush=True)
+    print(f"\n[rf] 完成，共 {(time.time() - t0) / 60:.1f} 分鐘；已存 results/0*/rf_*.csv", flush=True)
 
 
 if __name__ == "__main__":

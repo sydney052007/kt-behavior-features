@@ -3,7 +3,7 @@
     python3 src/run_r0_lr.py
 輸出：
     data/interim/oof_r0_lr.csv   OOF 預測（學生層級，不進 git）
-    results/r0_lr_cv.csv         彙總表（只有彙總數字）
+    results/02_analysis/r0_lr_cv.csv         彙總表（只有彙總數字）
 """
 import os
 import sys
@@ -18,7 +18,7 @@ from evaluate import evaluate  # noqa: E402
 from features import OUT_PATH, R0_FEATURES  # noqa: E402
 
 OOF_PATH = "data/interim/oof_r0_lr.csv"
-RESULT_PATH = "results/r0_lr_cv.csv"
+RESULT_PATH = "results/02_analysis/r0_lr_cv.csv"
 
 
 def make_model():
