@@ -3,7 +3,7 @@
 整理日期見 git log。所有檔案只有彙總數字（沒有 user_id、school_id 欄位）。舊路徑 → 新路徑對照在 `MOVED.csv`。
 「有沒有被程式讀」只計 `src/`、`tests/` 內的讀取（`src/make_report_tables.py` 與 `tests/test_report_tables.py` 讀的是 02_analysis 內的多個檔案，各表的來源見 05 一節，這裡不逐一重複）；`~/scratch` 內的臨時腳本不算。
 
-共 60 個檔案：01_preprocessing 10 個、02_analysis 30 個、03_process 5 個、04_exports 3 個、05_report_tables 12 個。
+共 76 個檔案：01_preprocessing 10 個、02_analysis 38 個、03_process 6 個、04_exports 3 個、05_report_tables 19 個。
 待我確認：無（`rf_grid_auc.csv` 已依你的決定移到 02_analysis）。
 
 ## 01_preprocessing — 前處理與資料描述
@@ -28,6 +28,14 @@
 | `ablation_lr_cv.csv` | 15 組特徵 LR ablation 的 A／B／C | src/run_ablation_lr.py | 360 列 | 無 |  |
 | `ablation_lr_paired.csv` | ablation 各組對參考組的配對 ΔAUC（A 逐 fold、C 配對 CI） | src/run_ablation_lr.py | 42 列 | 無 | 行為特徵群邊際貢獻的逐 fold 值在這裡 |
 | `ablation_lr_steps.csv` | R0→R0d→R1 每一步的 ΔAUC | src/run_ablation_lr.py | 9 列 | 無 |  |
+| `error_reproduction.csv` | 錯誤分析的重現檢查：重新產生的 OOF 其 A 平均（ROC-AUC、PR-AUC）與既有結果的差（LR、RF × R0d、R1） | src/run_error_analysis.py | 8 列 | 有：`src/make_report_tables.py`、`tests/test_error_analysis.py` | 規則見 CLAUDE.md「錯誤分析規則」；只有彙總（OOF 逐列預測沒有存檔） |
+| `error_cutpoints.csv` | 錯誤分析：item_diff 三等分的切點（全部 OOF 驗證列的 33%、67% 分位數） | src/run_error_analysis.py | 2 列 | 有：`src/make_report_tables.py`、`tests/test_error_analysis.py` | 規則見 CLAUDE.md「錯誤分析規則」；只有彙總（OOF 逐列預測沒有存檔） |
+| `error_segments.csv` | 錯誤分析：分段表現（位置／技能／item_diff 三等分／提示歷史）；R0d、R1 的 ROC-AUC、PR-AUC 與 R1−R0d 的 ΔAUC 與 95% CI（學生為單位的配對 cluster bootstrap） | src/run_error_analysis.py | 110 列 | 有：`src/make_report_tables.py`、`tests/test_error_analysis.py` | 規則見 CLAUDE.md「錯誤分析規則」；只有彙總（OOF 逐列預測沒有存檔） |
+| `error_confusion.csv` | 錯誤分析：5 個 fold 合併的混淆矩陣（TP／FP／FN／TN）與 slip、guess 的比例（R0d、R1 × LR、RF） | src/run_error_analysis.py | 24 列 | 有：`src/make_report_tables.py`、`tests/test_error_analysis.py` | 規則見 CLAUDE.md「錯誤分析規則」；只有彙總（OOF 逐列預測沒有存檔） |
+| `error_calibration.csv` | 錯誤分析：預測答對機率的 10 個等寬桶（列數、平均預測機率、實際答對率） | src/run_error_analysis.py | 40 列 | 有：`src/make_report_tables.py`、`tests/test_error_analysis.py` | 規則見 CLAUDE.md「錯誤分析規則」；只有彙總（OOF 逐列預測沒有存檔） |
+| `error_calibration_ece.csv` | 錯誤分析：ECE（R0d、R1 × LR、RF） | src/run_error_analysis.py | 4 列 | 有：`src/make_report_tables.py`、`tests/test_error_analysis.py` | 規則見 CLAUDE.md「錯誤分析規則」；只有彙總（OOF 逐列預測沒有存檔） |
+| `error_high_conf_groups.csv` | 錯誤分析：高信心錯誤兩群（預測答對 ≥ 0.8 但答錯；預測 ≤ 0.2 但答對）的列數與占比 | src/run_error_analysis.py | 8 列 | 有：`src/make_report_tables.py`、`tests/test_error_analysis.py` | 規則見 CLAUDE.md「錯誤分析規則」；只有彙總（OOF 逐列預測沒有存檔） |
+| `error_high_conf_features.csv` | 錯誤分析：高信心錯誤兩群在 7 個特徵的平均 vs 全部列的平均 | src/run_error_analysis.py | 56 列 | 有：`src/make_report_tables.py`、`tests/test_error_analysis.py` | 規則見 CLAUDE.md「錯誤分析規則」；只有彙總（OOF 逐列預測沒有存檔） |
 | `r0_lr_cv.csv` | R0 + LR（沒有 StandardScaler）的 A／B／C，W2 第一版結果 | src/run_r0_lr.py | 24 列 | 有：`src/run_r1_lr.py`、`tests/test_xschool_r0.py` | **被 `r1_lr_cv.csv` 的 R0 列取代，報告以後者為準**（兩者在小數點三位相同；此檔只保留作為『加 StandardScaler 後數字不變』的對照） |
 | `r1_lr_coef.csv` | R1 LR 的標準化係數（5 個 fold 平均與標準差） | src/run_r1_lr.py | 13 列 | 無 |  |
 | `r1_lr_cv.csv` | R0／R0d／R1 的 LR A／B／C（StandardScaler + LR，學生分組） | src/run_r1_lr.py | 72 列 | 有：`src/run_r1r.py`、`src/run_ablation_lr.py`、`src/run_rf.py`、`src/run_xschool_r0.py`、`tests/test_xschool.py`、`tests/test_xschool_r0.py` | 被很多腳本當對照輸入 |
@@ -60,6 +68,7 @@
 
 | 檔案 | 內容 | 產生它的腳本 | 列數 | 有沒有被程式讀 | 備註 |
 |---|---|---|---|---|---|
+| `error_analysis_run.log` | run_error_analysis.py 的完整執行紀錄（含重現檢查與所有彙總表） | src/run_error_analysis.py | 167 行 | 無 | 由 shell 重導向存成（python3 … > 檔名）；腳本本身不寫這個檔 |
 | `r1r_rf_grid.csv` | R1r、R0d_rel 的 RF 9 組網格（含各 fold） | src/run_r1r.py | 18 列 | 無 |  |
 | `r1r_run.log` | run_r1r.py 的完整執行紀錄 | src/run_r1r.py | 105 行 | 無 | 由 shell 重導向存成（python3 … > 檔名）；腳本本身不寫這個檔 |
 | `rf_run.log` | run_rf.py 的完整執行紀錄（含 27 組網格的進度） | src/run_rf.py | 124 行 | 無 | 由 shell 重導向存成（python3 … > 檔名）；腳本本身不寫這個檔 |
@@ -93,6 +102,13 @@
 | `05_report_tables/f_rf_grid_R0.csv` | RF 網格（R0）：max_depth（列）× min_samples_leaf（欄）的 A ROC-AUC，* = 最佳 | `rf_grid_auc.csv` | 3 列 | （補充；無對應候選） | R1r、R0d_rel 的網格在 03_process，不納入 |
 | `05_report_tables/f_rf_grid_R0d.csv` | RF 網格（R0d）：max_depth（列）× min_samples_leaf（欄）的 A ROC-AUC，* = 最佳 | `rf_grid_auc.csv` | 3 列 | （補充；無對應候選） |  |
 | `05_report_tables/f_rf_grid_R1.csv` | RF 網格（R1）：max_depth（列）× min_samples_leaf（欄）的 A ROC-AUC，* = 最佳 | `rf_grid_auc.csv` | 3 列 | （補充；無對應候選） |  |
+| `05_report_tables/h_error_segments_LR.csv` | 錯誤分析・分段表現（LR）：位置／技能／item_diff 三等分／提示歷史，R0d 與 R1 的 AUC、R1−R0d 的 ΔAUC 與 95% CI | `error_segments.csv` | 11 列 | 8. 錯誤分析 | 分段內單一類別時 AUC 為空並註記（本次沒有出現） |
+| `05_report_tables/h_error_segments_RF.csv` | 錯誤分析・分段表現（RF）：位置／技能／item_diff 三等分／提示歷史，R0d 與 R1 的 AUC、R1−R0d 的 ΔAUC 與 95% CI | `error_segments.csv` | 11 列 | 8. 錯誤分析 | 同上 |
+| `05_report_tables/i_error_confusion.csv` | 錯誤分析・混淆矩陣與 slip／guess（5 個 fold 合併；答錯為正類） | `error_confusion.csv` | 4 列 | 8. 錯誤分析 | slip = FN、guess = FP；比例占全部列與占實際同類列 |
+| `05_report_tables/j_calibration_LR.csv` | 錯誤分析・校準（LR）：10 個等寬桶，R0d 與 R1 的列數、平均預測機率、實際答對率 | `error_calibration.csv` | 10 列 | 8. 錯誤分析 | 最後一桶含 1.0 |
+| `05_report_tables/j_calibration_RF.csv` | 錯誤分析・校準（RF）：10 個等寬桶，R0d 與 R1 的列數、平均預測機率、實際答對率 | `error_calibration.csv` | 10 列 | 8. 錯誤分析 | 同上 |
+| `05_report_tables/j_calibration_ece.csv` | 錯誤分析・ECE（R0d、R1 × LR、RF） | `error_calibration_ece.csv` | 4 列 | 8. 錯誤分析 |  |
+| `05_report_tables/k_high_confidence.csv` | 錯誤分析・高信心錯誤兩群的列數、占比與特徵平均（vs 全部列） | `error_high_conf_groups.csv`、`error_high_conf_features.csv` | 8 列 | 8. 錯誤分析 | hint_rate 在 t=1 是訓練集平均填補值（與其他特徵一致，未特別處理） |
 
 ## 報告候選圖表對照表
 
@@ -105,4 +121,4 @@
 | 5. 位置分桶 B 表 | `02_analysis/r1_lr_cv.csv`、`02_analysis/rf_cv.csv`、`02_analysis/xschool_cv.csv`、`02_analysis/r1r_cv.csv` 的 eval=B 列 | 寬表：`05_report_tables/d_position_bins_LR.csv`、`d_position_bins_RF.csv`；另有 `04_exports/` 內 Excel 的 *_B 工作表 |
 | 6. 特徵清單／前處理表 | 尚無 | 部分：`01_preprocessing/r1r_feature_stats.csv` 只有 4 個新特徵的統計；R0d／R1 的 13 個特徵的統計表尚無（特徵定義在 `src/features_r1.py`） |
 | 7. 資料集規模表 | 尚無（02_analysis 內沒有）；原始數字在 `01_preprocessing/make_subset_summary.txt`、`01_preprocessing/split_summary.txt`、`01_preprocessing/xschool_groups.csv`、`01_preprocessing/xschool_folds.csv` | 需要時可由這幾個檔案整理 |
-| 8. 錯誤分析 | 尚無 | |
+| 8. 錯誤分析 | `02_analysis/error_segments.csv`（分段表現）、`error_confusion.csv`（混淆矩陣、slip／guess）、`error_calibration.csv`、`error_calibration_ece.csv`（校準）、`error_high_conf_groups.csv`、`error_high_conf_features.csv`（高信心錯誤）、`error_cutpoints.csv`、`error_reproduction.csv`（重現檢查） | 寬表：`05_report_tables/h_error_segments_LR.csv`、`h_error_segments_RF.csv`、`i_error_confusion.csv`、`j_calibration_LR.csv`、`j_calibration_RF.csv`、`j_calibration_ece.csv`、`k_high_confidence.csv`；只有彙總，OOF 逐列預測沒有存檔 |

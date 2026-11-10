@@ -1,0 +1,167 @@
+[error] trainval OOF 30,516 列（只在記憶體；test 完全不碰）；4 組 OOF 已產生（16s）
+
+=== 重現檢查：A 的 5 fold 平均 vs 既有結果 ===
+model_type model  metric   rerun_mean  existing_mean  abs_diff
+        LR   R0d roc_auc 0.7468378690   0.7468378690   0.0e+00
+        LR   R0d  pr_auc 0.6266832679   0.6266832679   0.0e+00
+        LR    R1 roc_auc 0.7516027750   0.7516027750   0.0e+00
+        LR    R1  pr_auc 0.6438715629   0.6438715629   0.0e+00
+        RF   R0d roc_auc 0.7478990426   0.7478990426   0.0e+00
+        RF   R0d  pr_auc 0.6259838823   0.6259838823   0.0e+00
+        RF    R1 roc_auc 0.7575572408   0.7575572408   0.0e+00
+        RF    R1  pr_auc 0.6518334880   0.6518334880   0.0e+00
+重現檢查通過：最大差 0.0e+00 < 1e-9
+[seg] LR position     1                        n=  1841 wrong=0.423
+[seg] LR position     2-4                      n=  4911 wrong=0.357
+[seg] LR position     5-10                     n=  7473 wrong=0.351
+[seg] LR position     >=11                     n= 16291 wrong=0.359
+[seg] LR skill        47                       n= 15678 wrong=0.366
+[seg] LR skill        311                      n= 14838 wrong=0.354
+[seg] LR item_diff    low (<=q33)              n= 10095 wrong=0.518
+[seg] LR item_diff    mid (q33-q67]            n= 10353 wrong=0.367
+[seg] LR item_diff    high (>q67)              n= 10068 wrong=0.195
+[seg] LR hint_history hint_rate>0              n= 18662 wrong=0.409
+[seg] LR hint_history hint_rate=0 (incl. t=1)  n= 11854 wrong=0.283
+[seg] RF position     1                        n=  1841 wrong=0.423
+[seg] RF position     2-4                      n=  4911 wrong=0.357
+[seg] RF position     5-10                     n=  7473 wrong=0.351
+[seg] RF position     >=11                     n= 16291 wrong=0.359
+[seg] RF skill        47                       n= 15678 wrong=0.366
+[seg] RF skill        311                      n= 14838 wrong=0.354
+[seg] RF item_diff    low (<=q33)              n= 10095 wrong=0.518
+[seg] RF item_diff    mid (q33-q67]            n= 10353 wrong=0.367
+[seg] RF item_diff    high (>q67)              n= 10068 wrong=0.195
+[seg] RF hint_history hint_rate>0              n= 18662 wrong=0.409
+[seg] RF hint_history hint_rate=0 (incl. t=1)  n= 11854 wrong=0.283
+
+item_diff 三等分切點：q33 = 0.5840，q67 = 0.6890
+
+=== 分段表現（LR）===
+                                      n_rows  wrong_rate  AUC_R0d  AUC_R1  PR_R0d   PR_R1    dAUC  ci_low  ci_high
+segment_type segment                                                                                              
+position     1                          1841      0.4226   0.7015  0.7003  0.6232  0.6202 -0.0012 -0.0027   0.0004
+             2-4                        4911      0.3570   0.7372  0.7458  0.5862  0.6164  0.0087  0.0036   0.0136
+             5-10                       7473      0.3509   0.7355  0.7461  0.6061  0.6300  0.0106  0.0074   0.0137
+             >=11                      16291      0.3585   0.7614  0.7629  0.6563  0.6699  0.0015 -0.0010   0.0039
+skill        47                        15678      0.3661   0.7755  0.7825  0.6546  0.6765  0.0070  0.0048   0.0092
+             311                       14838      0.3541   0.7136  0.7162  0.5989  0.6098  0.0026 -0.0003   0.0055
+item_diff    low (<=q33)               10095      0.5179   0.6855  0.6965  0.7019  0.7225  0.0110  0.0071   0.0147
+             mid (q33-q67]             10353      0.3670   0.6870  0.6901  0.5838  0.5963  0.0031 -0.0003   0.0065
+             high (>q67)               10068      0.1953   0.7296  0.7317  0.4414  0.4578  0.0021 -0.0015   0.0057
+hint_history hint_rate>0               18662      0.4094   0.7545  0.7595  0.6780  0.6961  0.0050  0.0027   0.0074
+             hint_rate=0 (incl. t=1)   11854      0.2829   0.7129  0.7188  0.4870  0.5031  0.0059  0.0033   0.0086
+
+=== 分段表現（RF）===
+                                      n_rows  wrong_rate  AUC_R0d  AUC_R1  PR_R0d   PR_R1    dAUC  ci_low  ci_high
+segment_type segment                                                                                              
+position     1                          1841      0.4226   0.6900  0.6932  0.6021  0.6068  0.0032 -0.0054   0.0119
+             2-4                        4911      0.3570   0.7436  0.7574  0.5951  0.6370  0.0138  0.0072   0.0202
+             5-10                       7473      0.3509   0.7391  0.7528  0.6099  0.6361  0.0137  0.0086   0.0188
+             >=11                      16291      0.3585   0.7574  0.7651  0.6461  0.6708  0.0077  0.0044   0.0109
+skill        47                        15678      0.3661   0.7760  0.7874  0.6573  0.6870  0.0114  0.0080   0.0147
+             311                       14838      0.3541   0.7142  0.7232  0.5922  0.6149  0.0090  0.0051   0.0128
+item_diff    low (<=q33)               10095      0.5179   0.6855  0.7077  0.7007  0.7317  0.0221  0.0163   0.0276
+             mid (q33-q67]             10353      0.3670   0.6862  0.6960  0.5803  0.6035  0.0097  0.0047   0.0146
+             high (>q67)               10068      0.1953   0.7203  0.7316  0.4306  0.4569  0.0112  0.0050   0.0174
+hint_history hint_rate>0               18662      0.4094   0.7503  0.7630  0.6736  0.7026  0.0127  0.0094   0.0163
+             hint_rate=0 (incl. t=1)   11854      0.2829   0.7239  0.7296  0.5053  0.5135  0.0056  0.0021   0.0091
+
+=== 混淆矩陣（5 個 fold 合併；答錯為正類）===
+metric                TP      FP      FN       TN  slip (pred correct, actual wrong)  guess (pred wrong, actual correct)
+model_type model                                                                                                        
+LR         R0d    8269.0  7759.0  2725.0  11763.0                             2725.0                              7759.0
+           R1     8153.0  7469.0  2841.0  12053.0                             2841.0                              7469.0
+RF         R0d    8218.0  7597.0  2776.0  11925.0                             2776.0                              7597.0
+           R1     8152.0  7220.0  2842.0  12302.0                             2842.0                              7220.0
+model_type model                             metric  count  share_of_all_rows  share_within_actual_class
+        LR   R0d  slip (pred correct, actual wrong)   2725             0.0893                     0.2479
+        LR   R0d guess (pred wrong, actual correct)   7759             0.2543                     0.3974
+        LR    R1  slip (pred correct, actual wrong)   2841             0.0931                     0.2584
+        LR    R1 guess (pred wrong, actual correct)   7469             0.2448                     0.3826
+        RF   R0d  slip (pred correct, actual wrong)   2776             0.0910                     0.2525
+        RF   R0d guess (pred wrong, actual correct)   7597             0.2490                     0.3892
+        RF    R1  slip (pred correct, actual wrong)   2842             0.0931                     0.2585
+        RF    R1 guess (pred wrong, actual correct)   7220             0.2366                     0.3698
+
+=== 校準（ECE）===
+model_type model    ece  n_rows
+        LR   R0d 0.0059   30516
+        LR    R1 0.0079   30516
+        RF   R0d 0.0113   30516
+        RF    R1 0.0201   30516
+
+校準表 LR R0d
+ bin  bin_low  bin_high  n_rows  mean_pred  obs_correct_rate
+   1      0.0       0.1      64     0.0754            0.0625
+   2      0.1       0.2     688     0.1611            0.1512
+   3      0.2       0.3    1442     0.2539            0.2469
+   4      0.3       0.4    2349     0.3536            0.3453
+   5      0.4       0.5    3089     0.4519            0.4652
+   6      0.5       0.6    4017     0.5522            0.5591
+   7      0.6       0.7    4867     0.6517            0.6460
+   8      0.7       0.8    6190     0.7516            0.7507
+   9      0.8       0.9    5739     0.8471            0.8432
+  10      0.9       1.0    2071     0.9247            0.9338
+
+校準表 LR R1
+ bin  bin_low  bin_high  n_rows  mean_pred  obs_correct_rate
+   1      0.0       0.1     223     0.0765            0.0538
+   2      0.1       0.2     979     0.1555            0.1481
+   3      0.2       0.3    1504     0.2523            0.2434
+   4      0.3       0.4    1921     0.3532            0.3581
+   5      0.4       0.5    2786     0.4537            0.4681
+   6      0.5       0.6    3806     0.5527            0.5667
+   7      0.6       0.7    4935     0.6527            0.6353
+   8      0.7       0.8    6456     0.7513            0.7506
+   9      0.8       0.9    5784     0.8471            0.8460
+  10      0.9       1.0    2122     0.9233            0.9312
+
+校準表 RF R0d
+ bin  bin_low  bin_high  n_rows  mean_pred  obs_correct_rate
+   1      0.0       0.1       4     0.0894            0.0000
+   2      0.1       0.2     454     0.1673            0.1322
+   3      0.2       0.3    1238     0.2552            0.2092
+   4      0.3       0.4    2191     0.3535            0.3350
+   5      0.4       0.5    3439     0.4527            0.4400
+   6      0.5       0.6    4586     0.5506            0.5560
+   7      0.6       0.7    5169     0.6531            0.6485
+   8      0.7       0.8    6002     0.7499            0.7547
+   9      0.8       0.9    5841     0.8483            0.8639
+  10      0.9       1.0    1592     0.9173            0.9284
+
+校準表 RF R1
+ bin  bin_low  bin_high  n_rows  mean_pred  obs_correct_rate
+   1      0.0       0.1     103     0.0848            0.0291
+   2      0.1       0.2     606     0.1533            0.0825
+   3      0.2       0.3    1215     0.2569            0.2041
+   4      0.3       0.4    1814     0.3547            0.3115
+   5      0.4       0.5    3095     0.4548            0.4229
+   6      0.5       0.6    4710     0.5520            0.5484
+   7      0.6       0.7    5653     0.6517            0.6611
+   8      0.7       0.8    6386     0.7507            0.7707
+   9      0.8       0.9    5552     0.8482            0.8656
+  10      0.9       1.0    1382     0.9179            0.9399
+
+=== 高信心錯誤 ===
+model_type model                         group  n_rows  share_of_all_rows  region_rows  share_of_region
+        LR   R0d   pred_correct>=0.8 but wrong    1037             0.0340         7810           0.1328
+        LR   R0d pred_correct<=0.2 but correct     108             0.0035          752           0.1436
+        LR    R1   pred_correct>=0.8 but wrong    1037             0.0340         7906           0.1312
+        LR    R1 pred_correct<=0.2 but correct     157             0.0051         1202           0.1306
+        RF   R0d   pred_correct>=0.8 but wrong     909             0.0298         7433           0.1223
+        RF   R0d pred_correct<=0.2 but correct      60             0.0020          458           0.1310
+        RF    R1   pred_correct>=0.8 but wrong     829             0.0272         6934           0.1196
+        RF    R1 pred_correct<=0.2 but correct      53             0.0017          709           0.0748
+feature                                         position  item_diff  hint_rate  last_correct  log1p_c  log1p_w  has_history
+model_type model group                                                                                                     
+LR         R0d   pred_correct>=0.8 but wrong      16.132      0.725      0.097         0.946    2.159    1.041        0.986
+                 pred_correct<=0.2 but correct    13.343      0.364      0.540         0.034    0.844    1.807        0.991
+           R1    pred_correct>=0.8 but wrong      16.042      0.735      0.109         0.910    2.092    1.099        0.979
+                 pred_correct<=0.2 but correct    13.185      0.428      0.716         0.030    0.756    1.773        0.994
+RF         R0d   pred_correct>=0.8 but wrong      18.064      0.752      0.142         0.942    2.129    1.328        0.938
+                 pred_correct<=0.2 but correct    18.617      0.488      0.516         0.117    0.763    2.049        0.817
+           R1    pred_correct>=0.8 but wrong      17.776      0.746      0.086         0.928    2.133    1.244        0.937
+                 pred_correct<=0.2 but correct    19.283      0.550      0.742         0.000    1.193    2.215        1.000
+（全部列的平均） {'position': 17.616, 'item_diff': 0.63, 'hint_rate': 0.216, 'last_correct': 0.633, 'log1p_c': 1.893, 'log1p_w': 1.512, 'has_history': 0.94}
+
+[error] 完成，共 8.4 分鐘；已存 results/02_analysis/error_*.csv
