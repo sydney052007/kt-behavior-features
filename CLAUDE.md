@@ -51,6 +51,11 @@
   - 模型：LR = StandardScaler + LogisticRegression(C=np.inf)；RF = 300 棵、sqrt、種子 42、n_jobs=-1，R0d 用 max_depth=8、min_samples_leaf=5，R1 用 max_depth=None、min_samples_leaf=50，不重新搜尋。
   - 評估 A／B／C（t=6、11）全部報告；R1 − R0d 的配對比較（LR 與 RF）：A 報各 fold 差值、未加權平均、標準差、較好 fold 數與列數加權平均；C 的 cluster bootstrap 以『組別』為單位（2000 次、種子 42）。另報驗證列中訓練集沒出現過的 `problem_id` 比例（跨學校與學生分組各一份），並單獨列出最大組所在 fold 的 R0d、R1 AUC 與差值。
   - 結果只放彙總（`results/xschool_*.csv`），不放 user_id、school_id。
+- 跨學校補充實驗（R0 → R0d 的增益能不能搬到新學校；跑之前登記，不得因結果修改；test 的 262 位學生完全不碰）：
+  - 比較：LR 的 R0d − R0（同為 StandardScaler + LogisticRegression(C=np.inf)），在學校群分組 5-fold（沿用 `data/split_groups.csv`，不重新產生）下的 A ROC-AUC。R0 特徵 = `R0_FEATURES`（log1p_c、log1p_w、skill_311、has_history），不含 item_diff、last_correct。
+  - 學生分組下的對照值從 `results/r1_lr_cv.csv`、`results/r1_lr_paired.csv` 重算並印出實際數字（約 +0.078，不使用四捨五入值）。
+  - 判讀規則（A 的未加權 5 fold 平均 ΔAUC）：≥ +0.06 → item_diff 的增益大部分可搬移到新學校；< +0.04 → item_diff 有相當比例是學校／班級效應；介於兩者 → 照實報告，不下結論。
+  - 報告：R0 各 fold 的 ROC-AUC、PR-AUC 與平均 ± 標準差；R0d（沿用 `xschool_a_folds.csv`，不重跑）− R0 的各 fold 差值、未加權平均、標準差、較好 fold 數、列數加權平均；學生分組與學校分組的並排表；最大組所在 fold 的單獨數字；C（t=6、t=11）的 R0d − R0 配對 ΔAUC 與 95% CI（組別為單位的 cluster bootstrap，2000 次、種子 42）。結果放 `results/xschool_r0_*.csv`。
 
 ## 尚未決定（不要自己決定，遇到時回報）
 - （目前沒有）
