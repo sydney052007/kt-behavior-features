@@ -44,9 +44,16 @@
 - 標準化作答時間：夾在訓練集 [p1, p99] → log → 減去該題訓練集 log 中位數。
 - 所有統計量（p1、p99、題目中位數、填補值、item_diff）每個 fold 由訓練列重算；test 只在最後跑一次。
 - 調整規則：特徵與模型的選擇只看 5-fold 的 A；R0d 與 R1 用同樣的超參數範圍；記下嘗試次數。
+- 跨學校：**不縮減，已於 11/9 排入 11/26–11/28**。
+- 跨學校實驗規則（跑之前登記，不得因結果修改；test 的 262 位學生完全不碰）：
+  - 分組：在 trainval 上，把共用同一個 `student_class_id` 或 `teacher_id` 的學校併成同一組（union-find 連通分量）。併完最大組超過 trainval 列數的 40%、或組數少於 5 → 停下來回報。否則 `GroupKFold(n_splits=5)` 依組別切（不 shuffle，確定性），「學校 → 組別 → fold」存 `data/split_groups.csv`（untracked，只有 school_id、group_id、fold；存好之後不重新產生）。
+  - 特徵 R0d 與 R1（`features_r1.py` 不改）；item_diff 的 inner 5-fold 改成依同一個組別分組；驗證列用完整訓練集的題目統計，沒見過的題目用 p̄。
+  - 模型：LR = StandardScaler + LogisticRegression(C=np.inf)；RF = 300 棵、sqrt、種子 42、n_jobs=-1，R0d 用 max_depth=8、min_samples_leaf=5，R1 用 max_depth=None、min_samples_leaf=50，不重新搜尋。
+  - 評估 A／B／C（t=6、11）全部報告；R1 − R0d 的配對比較（LR 與 RF）：A 報各 fold 差值、未加權平均、標準差、較好 fold 數與列數加權平均；C 的 cluster bootstrap 以『組別』為單位（2000 次、種子 42）。另報驗證列中訓練集沒出現過的 `problem_id` 比例（跨學校與學生分組各一份），並單獨列出最大組所在 fold 的 R0d、R1 AUC 與差值。
+  - 結果只放彙總（`results/xschool_*.csv`），不放 user_id、school_id。
 
 ## 尚未決定（不要自己決定，遇到時回報）
-- 跨學校是否也要縮減（12/1 斷點時決定）。
+- （目前沒有）
 
 ## 變體紀錄（調整次數；報告要明說）
 - **R1r 是看過 R1 結果之後才設計的事後變體**（R1 = R0d + 7 個行為特徵；R1r = R1 + 4 個「相對於題目平均」的特徵 `rel_hint_mean`、`rel_hint_last`、`rel_att_mean`、`rel_att_last`，實作在 `src/features_r1r.py`）。R0d_rel = R0d + 同樣 4 個特徵，只當診斷。
