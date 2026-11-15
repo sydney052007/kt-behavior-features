@@ -1,0 +1,3 @@
+panel,label,value,source
+a_add_to_R0d,all behavior groups (R1 − R0d),0.0047649059391918,05_report_tables/b_paired_A.csv: LR main R1 - R0d delta_mean
+b_remove_from_R1,all behavior groups removed (R0d vs R1),-0.0047649059391918,same value with the sign flipped

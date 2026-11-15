@@ -1,5 +1,7 @@
 # 資料使用條款：不轉交原始資料，任何資料檔都不進 git
 data/
+# 圖背後的彙總數據表（只有彙總數字）要追蹤
+!figures/data/
 *.xlsx
 *.npz
 # Python

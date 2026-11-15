@@ -47,7 +47,7 @@ def test_files_exist_and_formats():
         dpi = Image.open(png).info.get("dpi")
         assert dpi is not None and round(dpi[0]) == 300 and round(dpi[1]) == 300, f"{name} 的 PNG dpi = {dpi}"
         assert ET.parse(svg).getroot().tag.endswith("svg")
-    for f in ["fig2_ladder_levels", "fig2_ladder_increments", "fig3_behavior_groups", "fig4_cross_school"]:
+    for f in ["fig2_ladder_levels", "fig2_ladder_increments", "fig3_behavior_groups", "fig3_reference_lines", "fig4_cross_school"]:
         assert os.path.getsize(f"{DATA}{f}.csv") > 0
 
 
@@ -59,7 +59,7 @@ def test_consistent_encoding_constants():
 def test_data_tables_equal_fresh_build():
     lv, inc = mf.data_fig2()
     for name, fresh in [("fig2_ladder_levels", lv), ("fig2_ladder_increments", inc), ("fig3_behavior_groups", mf.data_fig3()),
-                        ("fig4_cross_school", mf.data_fig4())]:
+                        ("fig4_cross_school", mf.data_fig4()), ("fig3_reference_lines", mf.data_fig3_refs())]:
         disk = rd(f"{DATA}{name}.csv")
         pd.testing.assert_frame_equal(disk, fresh.reset_index(drop=True), check_exact=True, check_dtype=False, obj=name)
 
@@ -159,10 +159,42 @@ def test_every_plotted_number_exists_in_some_source():
                 assert found(float(v), arr), f"{name}.{c} 的 {v} 在來源 {files} 找不到"
 
 
+def test_fig3_reference_lines_come_from_05_b_paired_A():
+    refs = rd(DATA + "fig3_reference_lines.csv")
+    assert list(refs["panel"]) == ["a_add_to_R0d", "b_remove_from_R1"]
+    b = rd(R5 + "b_paired_A.csv")
+    v = b[(b["model_type"] == "LR") & (b["analysis"] == "main") & (b["comparison"] == "R1 - R0d")]["delta_mean"].iloc[0]
+    assert refs["value"].iloc[0] == v and refs["value"].iloc[1] == -v          # (b) 是同一個值取負號
+    assert abs(round(v, 4) - 0.0048) < 1e-12                                    # 圖上標的 ±0.0048
+    lr2 = rd(R2 + "r1_lr_paired.csv")
+    src = lr2[(lr2["eval"] == "A") & (lr2["comparison"] == "R1 - R0d")]["delta_auc"].iloc[0]
+    assert abs(v - src) <= TOL                                                  # 也對得回 02 的來源
+    assert refs["label"].iloc[0] == "all behavior groups (R1 − R0d)" and refs["label"].iloc[1] == "all behavior groups removed (R0d vs R1)"
+
+
+def test_no_label_overlaps_or_out_of_frame():
+    """三張圖的標註不互相覆蓋、不超出圖框／座標軸、不壓到資料點與水平線（零線、參考線、平均線）。"""
+    lv, inc = mf.data_fig2()
+    refs = mf.data_fig3_refs()
+    for name, fig in [("fig2", mf.fig2(lv, inc)), ("fig3", mf.fig3(mf.data_fig3(), refs)), ("fig4", mf.fig4(mf.data_fig4()))]:
+        probs = mf.check_layout(fig)
+        mf.plt.close(fig)
+        assert not probs, f"{name}: {probs}"
+
+
+def test_all_figure_data_csvs_are_tracked_by_git():
+    import subprocess
+    tracked = set(subprocess.run(["git", "ls-files", "figures/data"], capture_output=True, text=True, check=True).stdout.split())
+    on_disk = {f"figures/data/{f}" for f in os.listdir(DATA) if f.endswith(".csv")}
+    assert on_disk and on_disk <= tracked, f"尚未追蹤：{sorted(on_disk - tracked)}"
+
+
 if __name__ == "__main__":
     tests = [test_files_exist_and_formats, test_consistent_encoding_constants, test_data_tables_equal_fresh_build,
              test_fig2_values_trace_back_and_means_match_05, test_fig3_values_trace_back_and_means_match_05,
-             test_fig4_values_trace_back_and_means_match_05, test_every_plotted_number_exists_in_some_source]
+             test_fig4_values_trace_back_and_means_match_05, test_every_plotted_number_exists_in_some_source,
+             test_fig3_reference_lines_come_from_05_b_paired_A, test_no_label_overlaps_or_out_of_frame,
+             test_all_figure_data_csvs_are_tracked_by_git]
     for t in tests:
         try:
             t()
