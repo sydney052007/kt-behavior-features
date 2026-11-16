@@ -81,3 +81,63 @@
 - 程式碼要讓大學部學生看得懂，關鍵步驟寫註解。
 - 實驗結果輸出到 `results/` 的子資料夾（`01_preprocessing`、`02_analysis`、`03_process`、`04_exports`；索引見 `results/INDEX.md`，檔案搬移對照見 `results/MOVED.csv`）；EDA 彙總輸出在 `results/01_preprocessing/eda_w1/`。
 - 先 `source` 虛擬環境再跑；套件見 `requirements.txt`。
+
+## 交接補充（換 session 用；補上上面沒寫的規則、狀態與 repo 外的檔案）
+
+### 資料與 git 的安全規則
+- 所有進 git 的輸出（csv、xlsx、png／svg、log、寬表、`figures/data`）**只能有彙總數字**：不得含 `user_id`、`school_id`（以及 `teacher_id`、`student_class_id`、`order_id`、`problem_id` 這類能回推到學生或單一列的欄位）、逐列預測（如 OOF 的 `p_correct`）或逐列特徵。OOF 只放記憶體或 `data/`（untracked）。新增輸出時要檢查欄位名稱，測試也有檢查（`tests/test_error_analysis.py`）。
+- `data/` 底下全部 untracked：`data/interim/`（`features_r0.csv`、`main_s47_311.csv`、`split_users.csv`、`oof_cmp_*.csv`、`oof_r0_lr.csv` …）、`data/raw/`、原始 xlsx、`data/split_groups.csv`。
+- `.gitignore` 擋 `*.xlsx` 與 `*.npz`。`results/04_exports/W3_*.xlsx` 是只含彙總數字、用 `git add -f` 加入的例外；原始資料的 xlsx 仍被擋。
+- `.gitignore` 的 `data/` 規則會連 `figures/data/` 一起擋，所以另有一行 `!figures/data/`（讓圖背後的彙總數據表可被追蹤）。這兩行都不要移除；注意 gitignore 不支援行內註解，註解要放在獨立一行。
+- **不使用 `git push --force`**。push 前確認 remote 是使用者自己的 repo（`origin` = `sydney052007/kt-behavior-features`）、目前在 `main`。commit 訊息不加 `Co-Authored-By`（使用者的要求）。
+- 文字（回覆、文件、程式註解）一律用**繁體中文**，不要用簡體字（使用者的要求）。
+
+### test 的 262 位學生
+- 到目前為止 test 完全沒被用在任何建模、調參、特徵統計量、評估、錯誤分析或圖表：所有結果都是 trainval 的 5-fold 驗證預測，程式內有 assert。`data/interim/features_r0.csv` 含 test 列的因果特徵（只用該學生自己的歷史，沒有跨學生統計量），但沒有被用來建模。W1 EDA（`results/01_preprocessing/eda_w1/`）是切分前對全部資料做的描述統計，沒有用在任何建模決定。
+- **test 的最終評估（只跑一次）尚未執行**；要跑之前先告訴使用者。
+- `data/interim/split_users.csv` 與 `data/split_groups.csv` 都已存好，不重新產生、不換種子；`src/make_xschool_groups.py` 在檔案已存在時只驗證不覆蓋。
+
+### 環境與可重現性
+- 虛擬環境在 repo 外：`/home/sydney/venvs/mlfinal`（Python 3.14.4）。跑程式與測試用 `/home/sydney/venvs/mlfinal/bin/python`（或先 `source`）。
+- **套件版本固定**：`scikit-learn==1.9.1`、`pandas==3.0.6`、`numpy==2.5.4`（`requirements.txt` 已釘；matplotlib 3.11.2、openpyxl 3.1.5 是目前環境的版本，未釘）。理由：item_diff 的 inner 5-fold（`GroupKFold(shuffle=True, random_state=42)`）的分組會隨 sklearn 版本不同，結果才能重現。不要升級套件；非升不可的話，要重跑並重新核對既有結果。
+- RF 用 `n_jobs=-1` 時，預測有約 1e-16 的浮點誤差（多執行緒加總順序不固定），樹本身完全相同；測試用 1e-12／1e-9 的容差，不要求逐位元組相同。
+- 05 的寬表用 pandas 預設浮點解析讀長格式再寫出，數值可能與 02 的原始 csv 差 1 個浮點末位（約 1e-17）；測試以 1e-12 容差對回 02。`make_figures.py` 用 `float_precision="round_trip"` 讀檔。
+- 沒有 pytest：每個測試檔可直接 `python3 tests/test_xxx.py` 跑（目前 14 個檔案全過）。
+
+### 結果資料夾（`results/`）的分類規則與維護
+- `01_preprocessing`：前處理與資料描述（EDA、切分／分組摘要、特徵統計、題目覆蓋）。`02_analysis`：要放進報告的最終分析表；若同一檔案既是分析表又被別的腳本當輸入，放 02，不拆。`03_process`：過程與中間產物（log、僅作過程的網格等）。`04_exports`：給人看的 xlsx。`05_report_tables`：報告用寬表，由 `src/make_report_tables.py` 從 02 的長格式產生，**不重算任何數字**，`tests/test_report_tables.py` 檢查每個數字都能回到來源。
+- 一個檔案只放一處，不合併、不拆；不確定時放 `03_process`，並在 `INDEX.md` 標「待我確認」。搬檔用 `git mv`。
+- `results/INDEX.md` 是**手動維護**的索引（每個檔案的內容、產生腳本、列數、有沒有被程式讀、備註，另有報告候選圖表對照表）。新增、搬移結果檔時要同步更新 `INDEX.md` 的檔案數與列。`results/MOVED.csv` 是整理時的舊路徑 → 新路徑對照。
+- 腳本內寫死的 `results/…` 路徑要指向新位置（搬移後已全部更新）。
+
+### 圖（`figures/`）
+- `figures/`：`fig2_ladder`、`fig3_behavior_groups`、`fig4_cross_school`、`fig5_error_analysis`（各有 PNG 300 dpi 與 SVG），由 `src/make_figures.py` 產生；圖背後的彙總數據表在 `figures/data/*.csv`（已追蹤）。圖編號從 fig2 開始（fig1 不在這個 repo）。
+- 圖只讀 `results/02_analysis` 與 `05_report_tables` 的 csv，不重算、不重跑模型。`tests/test_figures.py` 檢查每個畫出來的數字都能回到來源、平均與 05 的對應表一致，並用 `check_layout` 檢查標註不互相覆蓋、不超出圖框、不壓到資料點與水平線。
+- 視覺編碼（四張圖一致）：顏色 = 特徵組（R0 `#0072B2`、R0d `#E69F00`、R1 `#009E73`，Okabe-Ito 色盲友善配色），形狀 = 模型（LR 圓、RF 方）。
+
+### 產生腳本與執行順序
+| 腳本 | 產生 |
+|---|---|
+| `src/make_subset.py`、`src/make_split.py`、`src/eda_w1_[a-d].py` | `data/interim/` 的子集與切分；`results/01_preprocessing/` 的彙總與 EDA（以 stdout 重導向存成） |
+| `src/features.py`、`src/features_r1.py`、`src/features_r1r.py` | R0 特徵（`features_r0.csv`）、R0d／R1 特徵、R1r 的 4 個新特徵（模組，每個 fold 內由訓練列重算統計量） |
+| `src/run_r0_lr.py`、`src/run_r1_lr.py`、`src/make_lr_fold_scores.py` | `r0_lr_cv.csv`；`r1_lr_{cv,paired,coef}.csv`；`r1_lr_folds.csv`（LR 各 fold 絕對分數） |
+| `src/run_ablation_lr.py`、`src/run_rf.py` | `ablation_lr_*.csv`；`rf_*.csv`（含 `rf_grid_auc.csv`） |
+| `src/run_r1r.py` → **再跑** `src/finalize_r1r_results.py` | `r1r_*`；`run_r1r.py` 的原始輸出要由 `finalize_r1r_results.py` 切分成最後的檔案（重複執行會自己擋下） |
+| `src/make_xschool_groups.py` → `src/run_xschool.py` → `src/run_xschool_r0.py` | 分組檔與 `xschool_groups.csv`、`xschool_folds.csv` → `xschool_*.csv`、`xschool_unseen_problems.csv` → `xschool_r0_*.csv` |
+| `src/run_error_analysis.py`、`src/run_error_hint_excl_t1.py` | `error_*.csv`（約 8.5 分鐘，主要是 bootstrap）；`error_hint_excl_t1.csv` |
+| `src/make_report_tables.py`、`src/make_figures.py` | `results/05_report_tables/`；`figures/` |
+- 共用模組：`src/cv.py`、`src/evaluate.py`、`src/xschool.py`。長時間的腳本用 `> results/03_process/<name>_run.log 2>&1` 存 log。
+
+### 目前進度與已知問題
+- 已完成：R0／R0d／R1 的 LR 與 RF（含 9 組網格）、ablation、R1r（事後變體）、跨學校 5-fold（R0d、R1）與 R0 補充實驗、錯誤分析（含事後描述性補充）、報告用寬表、圖 2–5 草稿。
+- 尚未做：test 的最終評估、報告文字、「特徵清單／前處理表」（R0d／R1 共 13 個特徵的統計表尚無，`r1r_feature_stats.csv` 只有 4 個新特徵）、資料集規模表（原始數字在 `01_preprocessing` 的各 summary 檔）。細節見 `results/INDEX.md` 最後的候選圖表對照表。
+- 已知問題：xlsx 的產生器不在 repo 內（見下），目前已失效；`W3_*.xlsx` 只涵蓋到 11 月中的結果，沒有錯誤分析與圖。
+
+### repo 外的檔案與路徑（不在 git，之後可能還會用到）
+- 虛擬環境：`/home/sydney/venvs/mlfinal`。
+- `~/scratch/`（臨時腳本）：
+  - `make_w3_xlsx_all.py`：`results/04_exports/W3_*.xlsx` 的**產生器（現行版）**。**已失效**：它讀的是整理前的 `results/` 根目錄路徑，並假設 `xschool_r0_vs_student_split.csv` 還有 `diff_foldK.0` 兩套欄位（已修正成一套）。要重現 xlsx，需先放進 `src/` 並更新路徑與欄位；`verify_xlsx.py`（讀回 xlsx 逐格比對 csv）同樣用舊路徑。`make_w3_xlsx.py` 是只有 LR 的第一版，已被取代。
+  - `check_smoothing_m.py`：item_diff 平滑參數 m（技能 47 → 5、311 → 20）的 method of moments 與 MLE 估計，只印出數字沒有存檔（決定已寫在「已決定」）；`check_problem_counts.py`：題目作答數分布與未見題目比例；`step0_groups.py`：跨學校分組預覽；`query_units.py`：school／teacher／class／assignment 單位統計；`report_features_r1.py`：R1 的 13 個特徵描述統計（尚未進 `results/`）。
+  - `reorg_spec.py`、`results_inventory.json`：整理 `results/` 時的檔案規格（`INDEX.md` 的原始素材，之後 INDEX 是手動維護）；`mutation_check.py`：破壞性檢查範例；`ablation_out.txt`、`r1r_paired_raw_backup.csv`、`split_before_fix.csv`：一次性備份。
+- `/mnt/c/Users/sydney/OneDrive/Desktop/ML_final_project_study/`：使用者要求複製過 `src/features.py`、`src/features_r1.py`、`tests/test_features_r1.py`（目前與 repo 相同）；該資料夾其餘檔案是較舊的複本，不要假設它是最新的。
+- Claude Project 內的設計文件 `期末專題_新題目/設計修訂_1103.md`、`工作流程.md`（不在 repo，以使用者貼給我的內容為準）。
