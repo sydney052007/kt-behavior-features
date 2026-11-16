@@ -112,10 +112,33 @@ def test_d_no_student_level_columns_and_no_row_level_data():
         assert "p_correct" not in pd.read_csv(f, nrows=0).columns, f
 
 
+def test_e_hint_excl_t1_supplement_is_consistent_with_original_segments():
+    sup, seg = _csv("error_hint_excl_t1.csv"), _csv("error_segments.csv")
+    assert (sup["note"].str.contains("descriptive supplement")).all()
+    base = seg[(seg["model"] == "R0d") & (seg["metric"] == "roc_auc")]
+    for mt in ["LR", "RF"]:
+        b = base[base["model_type"] == mt].set_index(["segment_type", "segment"])
+        n_t1 = int(b.loc[("position", "1"), "n_rows"])
+        s = sup[(sup["model_type"] == mt) & (sup["model"] == "R0d") & (sup["metric"] == "roc_auc")].set_index("segment")
+        # 排除 t=1：'= 0' 少了 t=1 的列，'> 0' 完全不變；兩段加總 = 總列數 − t=1 列數
+        assert s.loc["hint_rate=0 (excl. t=1)", "n_rows"] == b.loc[("hint_history", "hint_rate=0 (incl. t=1)"), "n_rows"] - n_t1
+        assert s.loc["hint_rate>0", "n_rows"] == b.loc[("hint_history", "hint_rate>0"), "n_rows"]
+        assert s["n_rows"].sum() == N - n_t1 and n_t1 == 1841
+    # '> 0' 的列與 bootstrap 設定都沒變（同樣的列、同一個種子）→ ΔAUC 與 CI 必須與原本完全相同
+    d_sup = sup[(sup["segment"] == "hint_rate>0") & (sup["model"] == "R1 - R0d")].set_index("model_type")
+    d_old = seg[(seg["segment"] == "hint_rate>0") & (seg["model"] == "R1 - R0d")].set_index("model_type")
+    for mt in ["LR", "RF"]:
+        for col in ["value", "ci_low", "ci_high"]:
+            assert abs(d_sup.loc[mt, col] - d_old.loc[mt, col]) < 1e-12, (mt, col)
+    dd = sup[sup["model"] == "R1 - R0d"]
+    assert len(dd) == 4 and (dd["ci_low"] <= dd["value"]).all() and (dd["value"] <= dd["ci_high"]).all()
+
+
 if __name__ == "__main__":
     tests = [test_a_reproduces_existing_A_results, test_b_segments_partition_all_rows_and_counts_sum_to_total,
              test_c_calibration_bins_sum_to_total_and_ece, test_confusion_and_high_confidence_counts,
-             test_d_no_student_level_columns_and_no_row_level_data]
+             test_d_no_student_level_columns_and_no_row_level_data,
+             test_e_hint_excl_t1_supplement_is_consistent_with_original_segments]
     for t in tests:
         try:
             t()

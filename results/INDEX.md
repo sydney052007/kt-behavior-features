@@ -3,7 +3,7 @@
 整理日期見 git log。所有檔案只有彙總數字（沒有 user_id、school_id 欄位）。舊路徑 → 新路徑對照在 `MOVED.csv`。
 「有沒有被程式讀」只計 `src/`、`tests/` 內的讀取（`src/make_report_tables.py` 與 `tests/test_report_tables.py` 讀的是 02_analysis 內的多個檔案，各表的來源見 05 一節，這裡不逐一重複）；`~/scratch` 內的臨時腳本不算。
 
-共 76 個檔案：01_preprocessing 10 個、02_analysis 38 個、03_process 6 個、04_exports 3 個、05_report_tables 19 個。
+共 78 個檔案：01_preprocessing 10 個、02_analysis 39 個、03_process 7 個、04_exports 3 個、05_report_tables 19 個。
 待我確認：無（`rf_grid_auc.csv` 已依你的決定移到 02_analysis）。
 
 ## 01_preprocessing — 前處理與資料描述
@@ -28,6 +28,7 @@
 | `ablation_lr_cv.csv` | 15 組特徵 LR ablation 的 A／B／C | src/run_ablation_lr.py | 360 列 | 無 |  |
 | `ablation_lr_paired.csv` | ablation 各組對參考組的配對 ΔAUC（A 逐 fold、C 配對 CI） | src/run_ablation_lr.py | 42 列 | 無 | 行為特徵群邊際貢獻的逐 fold 值在這裡 |
 | `ablation_lr_steps.csv` | R0→R0d→R1 每一步的 ΔAUC | src/run_ablation_lr.py | 9 列 | 無 |  |
+| `error_hint_excl_t1.csv` | 錯誤分析的描述性補充：提示歷史分段排除 t=1 列後，hint_rate=0（10,013 列）與 >0（18,662 列）的 AUC 與 R1−R0d 的 ΔAUC 與 95% CI（LR、RF） | src/run_error_hint_excl_t1.py | 20 列 | 有：`tests/test_error_analysis.py` | **事後加、描述性補充**（見 CLAUDE.md「錯誤分析規則」最後一條）；不覆蓋 error_segments.csv |
 | `error_reproduction.csv` | 錯誤分析的重現檢查：重新產生的 OOF 其 A 平均（ROC-AUC、PR-AUC）與既有結果的差（LR、RF × R0d、R1） | src/run_error_analysis.py | 8 列 | 有：`src/make_report_tables.py`、`tests/test_error_analysis.py` | 規則見 CLAUDE.md「錯誤分析規則」；只有彙總（OOF 逐列預測沒有存檔） |
 | `error_cutpoints.csv` | 錯誤分析：item_diff 三等分的切點（全部 OOF 驗證列的 33%、67% 分位數） | src/run_error_analysis.py | 2 列 | 有：`src/make_report_tables.py`、`tests/test_error_analysis.py` | 規則見 CLAUDE.md「錯誤分析規則」；只有彙總（OOF 逐列預測沒有存檔） |
 | `error_segments.csv` | 錯誤分析：分段表現（位置／技能／item_diff 三等分／提示歷史）；R0d、R1 的 ROC-AUC、PR-AUC 與 R1−R0d 的 ΔAUC 與 95% CI（學生為單位的配對 cluster bootstrap） | src/run_error_analysis.py | 110 列 | 有：`src/make_report_tables.py`、`tests/test_error_analysis.py` | 規則見 CLAUDE.md「錯誤分析規則」；只有彙總（OOF 逐列預測沒有存檔） |
@@ -69,6 +70,7 @@
 | 檔案 | 內容 | 產生它的腳本 | 列數 | 有沒有被程式讀 | 備註 |
 |---|---|---|---|---|---|
 | `error_analysis_run.log` | run_error_analysis.py 的完整執行紀錄（含重現檢查與所有彙總表） | src/run_error_analysis.py | 167 行 | 無 | 由 shell 重導向存成（python3 … > 檔名）；腳本本身不寫這個檔 |
+| `error_hint_excl_t1_run.log` | run_error_hint_excl_t1.py 的完整執行紀錄（含 t=1 歸屬核對與並排結果） | src/run_error_hint_excl_t1.py | 14 行 | 無 | 由 shell 重導向存成（python3 … > 檔名）；腳本本身不寫這個檔 |
 | `r1r_rf_grid.csv` | R1r、R0d_rel 的 RF 9 組網格（含各 fold） | src/run_r1r.py | 18 列 | 無 |  |
 | `r1r_run.log` | run_r1r.py 的完整執行紀錄 | src/run_r1r.py | 105 行 | 無 | 由 shell 重導向存成（python3 … > 檔名）；腳本本身不寫這個檔 |
 | `rf_run.log` | run_rf.py 的完整執行紀錄（含 27 組網格的進度） | src/run_rf.py | 124 行 | 無 | 由 shell 重導向存成（python3 … > 檔名）；腳本本身不寫這個檔 |
