@@ -232,13 +232,35 @@ def test_gitignore_tracks_figures_data_but_not_data():
     assert tracked == [], f"data/ 底下不該有被追蹤的檔案：{tracked}"
 
 
+def test_fig5_presentation_rf_translucent_lr_on_top_and_no_ticks_on_group_rows():
+    a, b = mf.data_fig5a(), mf.data_fig5b()
+    fig = mf.fig5(a, b)
+    ax, bx = fig.axes[0], fig.axes[1]
+    # 只看有 10 個資料點的集合（右下角「bin 大小」圖例用的空 scatter 不算）；形狀不同：LR 圓、RF 方
+    data_cols = [c for c in bx.collections if len(c.get_offsets()) == 10]
+    assert len(data_cols) == 2
+    cols = {"RF" if c.get_alpha() is not None and c.get_alpha() < 1 else "LR": c for c in data_cols}
+    assert set(cols) == {"RF", "LR"}
+    assert abs(cols["RF"].get_alpha() - 0.6) < 1e-9 and cols["LR"].get_alpha() in (None, 1.0)      # RF 半透明
+    assert cols["LR"].get_zorder() > cols["RF"].get_zorder()                                      # LR 在上層
+    ax.figure.canvas.draw()
+    labels = [tl.get_text() for tl in ax.get_yticklabels()]
+    ticks = ax.yaxis.get_major_ticks()
+    groups = {"Position", "Skill", "Item difficulty (tertile)", "Hint history"}
+    for tl, tick in zip(ax.get_yticklabels(), ticks):
+        assert tick.tick1line.get_visible() == (tl.get_text() not in groups), tl.get_text()       # 只有組名列沒有刻度短線
+    assert groups <= set(labels)
+    mf.plt.close(fig)
+
+
 if __name__ == "__main__":
     tests = [test_files_exist_and_formats, test_consistent_encoding_constants, test_data_tables_equal_fresh_build,
              test_fig2_values_trace_back_and_means_match_05, test_fig3_values_trace_back_and_means_match_05,
              test_fig4_values_trace_back_and_means_match_05, test_every_plotted_number_exists_in_some_source,
              test_fig3_reference_lines_come_from_05_b_paired_A, test_no_label_overlaps_or_out_of_frame,
              test_all_figure_data_csvs_are_tracked_by_git, test_fig5_data_matches_error_csvs,
-             test_gitignore_tracks_figures_data_but_not_data]
+             test_gitignore_tracks_figures_data_but_not_data,
+             test_fig5_presentation_rf_translucent_lr_on_top_and_no_ticks_on_group_rows]
     for t in tests:
         try:
             t()

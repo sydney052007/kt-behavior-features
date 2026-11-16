@@ -23,6 +23,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
+from matplotlib.colors import to_rgba  # noqa: E402
 from matplotlib.lines import Line2D  # noqa: E402
 
 R2, R5 = "results/02_analysis/", "results/05_report_tables/"
@@ -311,9 +312,10 @@ def fig5(a, b):
         ax.plot(r["delta_roc_auc"], yy, marker=MARKERS[r["model_type"]], ms=7, color=COLORS["R1"], mec="black", mew=0.8, zorder=3)
     ax.axvline(0, color="black", lw=1, ls="--", zorder=1)
     ax.set_yticks([p for p, _ in ylabels], [t for _, t in ylabels], fontsize=9)
-    for tl, (p, _) in zip(ax.get_yticklabels(), ylabels):
+    for tl, tick, (p, _) in zip(ax.get_yticklabels(), ax.yaxis.get_major_ticks(), ylabels):
         if p in bold_rows:
             tl.set_fontweight("bold")
+            tick.tick1line.set_visible(False)                                     # 組名列不畫刻度短線
     ax.invert_yaxis()
     ax.set_ylim(y - 0.4, -0.7)
     lo, hi = a["ci_low"].min(), a["ci_high"].max()
@@ -327,11 +329,12 @@ def fig5(a, b):
     panel_label(ax, "(a)")
     # ---------------- (b) 校準：點的面積 ∝ 該桶列數；x、y 皆 [0, 1]，1:1
     bx.plot([0, 1], [0, 1], color="black", lw=1, ls="--", zorder=1)
-    for mt, ls in [("LR", "-"), ("RF", (0, (4, 2)))]:
+    # RF 先畫、標記半透明（alpha 0.6）；LR 畫在上層（zorder 較大），兩者都看得見
+    for mt, ls, alpha, z in [("RF", (0, (4, 2)), 0.6, 2), ("LR", "-", 1.0, 4)]:
         c = b[b["model_type"] == mt].sort_values("bin")
-        bx.plot(c["mean_pred"], c["obs_correct_rate"], color=COLORS["R1"], lw=1.4, ls=ls, zorder=2)
+        bx.plot(c["mean_pred"], c["obs_correct_rate"], color=COLORS["R1"], lw=1.4, ls=ls, zorder=z)
         bx.scatter(c["mean_pred"], c["obs_correct_rate"], s=22 + 0.03 * c["n_rows"], marker=MARKERS[mt], color=COLORS["R1"],
-                   edgecolor="black", linewidth=0.8, zorder=3)
+                   edgecolor="black", linewidth=0.8, alpha=alpha, zorder=z + 0.5)
     bx.set_xlim(0, 1)
     bx.set_ylim(0, 1)
     bx.set_aspect("equal", adjustable="box")
@@ -340,7 +343,8 @@ def fig5(a, b):
     bx.set_title("Calibration of R1 (10 equal-width bins)", fontsize=11)
     ece = {mt: b[b["model_type"] == mt]["ece"].iloc[0] for mt in ["LR", "RF"]}
     h1 = [Line2D([], [], marker="o", color=COLORS["R1"], mec="black", ms=7, lw=1.4),
-          Line2D([], [], marker="s", color=COLORS["R1"], mec="black", ms=7, lw=1.4, ls=(0, (4, 2)))]
+          Line2D([], [], marker="s", color=COLORS["R1"], markerfacecolor=to_rgba(COLORS["R1"], 0.6), markeredgecolor=(0, 0, 0, 0.6),
+                 ms=7, lw=1.4, ls=(0, (4, 2)))]
     leg1 = bx.legend(h1, [f"LR (ECE = {ece['LR']:.4f})", f"RF (ECE = {ece['RF']:.4f})"], loc="upper left", frameon=False, fontsize=8.5)
     bx.add_artist(leg1)
     h2 = [bx.scatter([], [], s=22 + 0.03 * n, marker="o", color="#bbbbbb", edgecolor="black", linewidth=0.8) for n in (200, 1000, 5000)]
