@@ -3,7 +3,7 @@
 整理日期見 git log。所有檔案只有彙總數字（沒有 user_id、school_id 欄位）。舊路徑 → 新路徑對照在 `MOVED.csv`。
 「有沒有被程式讀」只計 `src/`、`tests/` 內的讀取（`src/make_report_tables.py` 與 `tests/test_report_tables.py` 讀的是 02_analysis 內的多個檔案，各表的來源見 05 一節，這裡不逐一重複）；`~/scratch` 內的臨時腳本不算。
 
-共 75 個檔案：01_preprocessing 10 個、02_analysis 39 個、03_process 7 個、05_report_tables 19 個（04_exports 的三個 xlsx 已於整理第 2 階段刪除，見 MOVED.csv）。
+共 77 個檔案：01_preprocessing 12 個、02_analysis 39 個、03_process 7 個、05_report_tables 19 個（04_exports 的三個 xlsx 已於整理第 2 階段刪除，見 MOVED.csv）。
 待我確認：無（`rf_grid_auc.csv` 已依你的決定移到 02_analysis）。
 狀態欄：KEEP＝最終管線與報告輸出；ARCHIVE＝過程紀錄（不搬移，只標記）；事後變體＝R1r 相關（事後設計，報告須與 R1 並陳）。依據：`CLEANUP_INVENTORY.md` 與整理第 2 階段的決定。
 
@@ -17,6 +17,8 @@
 | `eda_w1/eda_w1_d.txt` | KEEP | W1 EDA（D）：原版重複列、原版 vs 修正版對照、opportunity 落差來源 | src/eda_w1_d.py | 37 行 | 無 | 由 stdout 重導向存成（腳本只 print）；推測，腳本內沒有寫檔指令 |
 | `make_subset_summary.txt` | KEEP | 技能 47／311 子集篩選的彙總（修正版與原版的列數） | src/make_subset.py | 16 行 | 無 | 由 stdout 重導向存成（腳本只 print）；推測，腳本內沒有寫檔指令 |
 | `r1r_feature_stats.csv` | KEEP（事後變體） | R1r 的 4 個新特徵的平均、標準差、最小、最大與和 correct 的相關 | src/run_r1r.py（原 r1r_new_features.csv）→ src/finalize_r1r_results.py 改名 | 4 列 | 無 |  |
+| `r1_feature_stats.csv` | KEEP | R0d／R1 共 13 個特徵的描述統計：定義、類型、範圍、平均、標準差、與 correct 的相關、缺失／填補規則與填補列數（5 個 fold 驗證列合併 = trainval 30,516 列） | src/report_features_r1.py | 13 列 | 有：`tests/test_report_features_r1.py` | 報告「特徵清單／前處理表」的來源；只用 trainval，只有彙總 |
+| `smoothing_m_estimate.txt` | KEEP | item_diff 平滑參數 m 的重新估計（method of moments、MLE、各 fold）與目前採用值（47 → 5、311 → 20）並列 | src/check_smoothing_m.py | 22 行 | 有：`tests/test_check_smoothing_m.py` | 只回報、不改 m；只用 trainval；腳本本身寫檔（不是 stdout 重導向） |
 | `split_summary.txt` | KEEP | train／test 與 5-fold 切分的彙總（SEED=42） | src/make_split.py | 18 行 | 無 | 由 stdout 重導向存成（腳本只 print）；推測，腳本內沒有寫檔指令 |
 | `xschool_folds.csv` | KEEP | 跨學校 5 個 fold 的組數、學生數、列數、答錯率 | src/make_xschool_groups.py | 5 列 | 有：`src/run_xschool.py`、`src/run_xschool_r0.py` | 也當輸入：用它找『最大組所在的 fold』 |
 | `xschool_groups.csv` | KEEP | 跨學校分組摘要：40 所學校併成 35 組，最大組占比與各組大小分布 | src/make_xschool_groups.py | 16 列 | 無 |  |
@@ -114,6 +116,6 @@
 | 3. 跨學校圖：學生分組與學校群分組的 R0d−R0、R1−R0d，各 fold 值 | R0d−R0：`02_analysis/xschool_r0_vs_student_split.csv`（兩種分組並排，逐 fold）；R1−R0d：`02_analysis/xschool_paired.csv`（學校群分組，LR、RF）、`02_analysis/r1_lr_paired.csv`（學生分組，LR）、`02_analysis/rf_paired.csv`（學生分組，RF） | 寬表：`05_report_tables/e_cross_school.csv`；學校群分組的 R0d−R0 只有 LR |
 | 4. 主結果表：A（AUC、PR-AUC）與 C t=6／t=11 的點估計與 95% CI | `02_analysis/r1_lr_cv.csv`（LR：R0／R0d／R1）、`02_analysis/rf_cv.csv`（RF）、`02_analysis/r1r_cv.csv`（R1r、R0d_rel）、`02_analysis/xschool_cv.csv`（跨學校） | 寬表：`05_report_tables/a_main_A.csv`、`a_main_C.csv`（R0／R0d／R1 的 LR 與 RF）、`b_paired_A.csv`、`b_paired_C.csv`（配對差異）；R1r 與跨學校尚未做成寬表 |
 | 5. 位置分桶 B 表 | `02_analysis/r1_lr_cv.csv`、`02_analysis/rf_cv.csv`、`02_analysis/xschool_cv.csv`、`02_analysis/r1r_cv.csv` 的 eval=B 列 | 寬表：`05_report_tables/d_position_bins_LR.csv`、`d_position_bins_RF.csv` |
-| 6. 特徵清單／前處理表 | 尚無 | 部分：`01_preprocessing/r1r_feature_stats.csv` 只有 4 個新特徵的統計；R0d／R1 的 13 個特徵的統計表尚無（特徵定義在 `src/features_r1.py`） |
+| 6. 特徵清單／前處理表 | `01_preprocessing/r1_feature_stats.csv`（R0d／R1 的 13 個特徵）、`01_preprocessing/r1r_feature_stats.csv`（R1r 的 4 個新特徵，事後變體）、`01_preprocessing/smoothing_m_estimate.txt`（item_diff 的 m） | 特徵定義在 `src/features_r1.py`；尚未做成報告用寬表 |
 | 7. 資料集規模表 | 尚無（02_analysis 內沒有）；原始數字在 `01_preprocessing/make_subset_summary.txt`、`01_preprocessing/split_summary.txt`、`01_preprocessing/xschool_groups.csv`、`01_preprocessing/xschool_folds.csv` | 需要時可由這幾個檔案整理 |
 | 8. 錯誤分析 | `02_analysis/error_segments.csv`（分段表現）、`error_confusion.csv`（混淆矩陣、slip／guess）、`error_calibration.csv`、`error_calibration_ece.csv`（校準）、`error_high_conf_groups.csv`、`error_high_conf_features.csv`（高信心錯誤）、`error_cutpoints.csv`、`error_reproduction.csv`（重現檢查） | 寬表：`05_report_tables/h_error_segments_LR.csv`、`h_error_segments_RF.csv`、`i_error_confusion.csv`、`j_calibration_LR.csv`、`j_calibration_RF.csv`、`j_calibration_ece.csv`、`k_high_confidence.csv`；只有彙總，OOF 逐列預測沒有存檔 |

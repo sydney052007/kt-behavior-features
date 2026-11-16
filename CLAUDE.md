@@ -102,7 +102,7 @@
 - **套件版本固定**：`scikit-learn==1.9.1`、`pandas==3.0.6`、`numpy==2.5.4`（`requirements.txt` 已釘；matplotlib 3.11.2、openpyxl 3.1.5 是目前環境的版本，未釘）。理由：item_diff 的 inner 5-fold（`GroupKFold(shuffle=True, random_state=42)`）的分組會隨 sklearn 版本不同，結果才能重現。不要升級套件；非升不可的話，要重跑並重新核對既有結果。
 - RF 用 `n_jobs=-1` 時，預測有約 1e-16 的浮點誤差（多執行緒加總順序不固定），樹本身完全相同；測試用 1e-12／1e-9 的容差，不要求逐位元組相同。
 - 05 的寬表用 pandas 預設浮點解析讀長格式再寫出，數值可能與 02 的原始 csv 差 1 個浮點末位（約 1e-17）；測試以 1e-12 容差對回 02。`make_figures.py` 用 `float_precision="round_trip"` 讀檔。
-- 沒有 pytest：每個測試檔可直接 `python3 tests/test_features.py` 這樣的方式跑（目前 14 個檔案全過）。
+- 沒有 pytest：每個測試檔可直接 `python3 tests/test_features.py` 這樣的方式跑（目前 16 個檔案全過）。
 
 ### 結果資料夾（`results/`）的分類規則與維護
 - `01_preprocessing`：前處理與資料描述（EDA、切分／分組摘要、特徵統計、題目覆蓋）。`02_analysis`：要放進報告的最終分析表；若同一檔案既是分析表又被別的腳本當輸入，放 02，不拆。`03_process`：過程與中間產物（log、僅作過程的網格等）。`05_report_tables`：報告用寬表，由 `src/make_report_tables.py` 從 02 的長格式產生，**不重算任何數字**，`tests/test_report_tables.py` 檢查每個數字都能回到來源。
@@ -124,17 +124,18 @@
 | `src/run_ablation_lr.py`、`src/run_rf.py` | `ablation_lr_*.csv`；`rf_*.csv`（含 `rf_grid_auc.csv`） |
 | `src/run_r1r.py` → **再跑** `src/finalize_r1r_results.py` | `r1r_*`；`run_r1r.py` 的原始輸出要由 `finalize_r1r_results.py` 切分成最後的檔案（重複執行會自己擋下） |
 | `src/make_xschool_groups.py` → `src/run_xschool.py` → `src/run_xschool_r0.py` | 分組檔與 `xschool_groups.csv`、`xschool_folds.csv` → `xschool_*.csv`、`xschool_unseen_problems.csv` → `xschool_r0_*.csv` |
+| `src/check_smoothing_m.py`、`src/report_features_r1.py` | `smoothing_m_estimate.txt`（item_diff 的 m 重新估計，只回報不改 m）；`r1_feature_stats.csv`（13 個特徵的描述統計）；皆只用 trainval，可獨立執行（不屬 `run_*`，不會覆寫實驗結果） |
 | `src/run_error_analysis.py`、`src/run_error_hint_excl_t1.py` | `error_*.csv`（約 8.5 分鐘，主要是 bootstrap）；`error_hint_excl_t1.csv` |
 | `src/make_report_tables.py`、`src/make_figures.py` | `results/05_report_tables/`；`figures/` |
 - 共用模組：`src/cv.py`、`src/evaluate.py`、`src/xschool.py`。長時間的腳本用 `> results/03_process/<name>_run.log 2>&1` 存 log。
 
 ### 目前進度與已知問題
 - 已完成：R0／R0d／R1 的 LR 與 RF（含 9 組網格）、ablation、R1r（事後變體）、跨學校 5-fold（R0d、R1）與 R0 補充實驗、錯誤分析（含事後描述性補充）、報告用寬表、圖 2–5 草稿。
-- 尚未做：test 的最終評估、報告文字、「特徵清單／前處理表」（R0d／R1 共 13 個特徵的統計表尚無，`r1r_feature_stats.csv` 只有 4 個新特徵）、資料集規模表（原始數字在 `01_preprocessing` 的各 summary 檔）。細節見 `results/INDEX.md` 最後的候選圖表對照表。
+- 尚未做：test 的最終評估、報告文字、資料集規模表（原始數字在 `01_preprocessing` 的各 summary 檔）。細節見 `results/INDEX.md` 最後的候選圖表對照表。
 
 ### repo 外的檔案與路徑（不在 git，之後可能還會用到）
 - 虛擬環境：`/home/sydney/venvs/mlfinal`。
 - `~/scratch/`（臨時腳本）：
-  - `check_smoothing_m.py`：item_diff 平滑參數 m（技能 47 → 5、311 → 20）的 method of moments 與 MLE 估計，只印出數字沒有存檔（決定已寫在「已決定」）；`check_problem_counts.py`：題目作答數分布與未見題目比例；`step0_groups.py`：跨學校分組預覽；`query_units.py`：school／teacher／class／assignment 單位統計；`report_features_r1.py`：R1 的 13 個特徵描述統計（尚未進 `results/`）。
+  - `check_problem_counts.py`：題目作答數分布與未見題目比例；`step0_groups.py`：跨學校分組預覽；`query_units.py`：school／teacher／class／assignment 單位統計。
   - `mutation_check.py`：破壞性檢查範例；`ablation_out.txt`、`r1r_paired_raw_backup.csv`：一次性備份（ARCHIVE）。
 - Claude Project 內的設計文件 `期末專題_新題目/設計修訂_1103.md`、`工作流程.md`（不在 repo，以使用者貼給我的內容為準）。
