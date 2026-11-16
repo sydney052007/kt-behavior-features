@@ -9,6 +9,8 @@
                            來源：02_analysis/ablation_lr_paired.csv
   fig4_cross_school        學生分組 vs 學校群分組的 R0d−R0、R1−R0d（LR、RF）
                            來源：05_report_tables/e_cross_school.csv
+  fig5_error_analysis      錯誤分析：(a) 分段 ΔAUC（R1 − R0d）的 forest plot；(b) R1 的校準曲線（LR、RF）
+                           來源：02_analysis/error_segments.csv、error_calibration.csv、error_calibration_ece.csv
 
 視覺規則（三張圖一致）：顏色 = 特徵組（R0／R0d／R1，Okabe-Ito 色盲友善配色）；形狀 = 模型（LR 圓、RF 方）；
 fold 的點是各自的 fold 值，粗橫線／粗線是 csv 裡的平均（不是在這裡重算的）。
@@ -89,6 +91,44 @@ def data_fig3_refs():
         dict(panel="a_add_to_R0d", label="all behavior groups (R1 − R0d)", value=v, source="05_report_tables/b_paired_A.csv: LR main R1 - R0d delta_mean"),
         dict(panel="b_remove_from_R1", label="all behavior groups removed (R0d vs R1)", value=-v, source="same value with the sign flipped"),
     ])
+
+
+SEG5 = [("position", "Position", [("1", "1"), ("2-4", "2–4"), ("5-10", "5–10"), (">=11", "≥ 11")]),
+        ("skill", "Skill", [("47", "47"), ("311", "311")]),
+        ("item_diff", "Item difficulty (tertile)", [("low (<=q33)", "low"), ("mid (q33-q67]", "mid"), ("high (>q67)", "high")]),
+        ("hint_history", "Hint history", [("hint_rate=0 (incl. t=1)", "hint_rate = 0"), ("hint_rate>0", "hint_rate > 0")])]
+
+
+def data_fig5a():
+    """分段 ΔAUC（R1 − R0d）與 95% CI、列數：直接取自 error_segments.csv（沒有重算）。"""
+    seg = rd(R2 + "error_segments.csv")
+    d = seg[(seg["model"] == "R1 - R0d") & (seg["metric"] == "delta_roc_auc")]
+    rows, order = [], 0
+    for stype, _, items in SEG5:
+        for name, _ in items:
+            for mt in ["LR", "RF"]:
+                r = d[(d["model_type"] == mt) & (d["segment_type"] == stype) & (d["segment"] == name)]
+                assert len(r) == 1, (mt, stype, name)
+                r = r.iloc[0]
+                assert pd.notna(r["ci_low"]) and pd.notna(r["ci_high"]), f"{mt} {stype} {name} 缺 CI"
+                rows.append(dict(row_order=order, segment_type=stype, segment=name, model_type=mt, n_rows=int(r["n_rows"]),
+                                 delta_roc_auc=r["value"], ci_low=r["ci_low"], ci_high=r["ci_high"]))
+            order += 1
+    return pd.DataFrame(rows)
+
+
+def data_fig5b():
+    """R1 的校準：10 個等寬桶的平均預測機率、實際答對率、列數，以及 ECE（取自 error_calibration*.csv）。"""
+    cal, ece = rd(R2 + "error_calibration.csv"), rd(R2 + "error_calibration_ece.csv")
+    rows = []
+    for mt in ["LR", "RF"]:
+        e = ece[(ece["model_type"] == mt) & (ece["model"] == "R1")]["ece"].iloc[0]
+        c = cal[(cal["model_type"] == mt) & (cal["model"] == "R1")].sort_values("bin")
+        assert len(c) == 10 and (c["n_rows"] > 0).all()
+        for _, r in c.iterrows():
+            rows.append(dict(model_type=mt, model="R1", bin=int(r["bin"]), bin_low=r["bin_low"], bin_high=r["bin_high"], n_rows=int(r["n_rows"]),
+                             mean_pred=r["mean_pred"], obs_correct_rate=r["obs_correct_rate"], ece=e))
+    return pd.DataFrame(rows)
 
 
 def data_fig4():
@@ -248,6 +288,72 @@ def fig4(d):
     return fig
 
 
+def fig5(a, b):
+    """(a) 分段 ΔAUC 的 forest plot；(b) R1 的校準曲線。顏色 = 特徵組（R1 綠），形狀 = 模型（LR 圓、RF 方），與圖 2–4 一致。"""
+    fig, (ax, bx) = plt.subplots(1, 2, figsize=(12.6, 6.0), gridspec_kw={"width_ratios": [1.3, 1.0]})
+    # ---------------- (a) forest plot：標題列（組名）+ 分段列；同組之間留空隔
+    ypos, ylabels, bold_rows, y = {}, [], [], 0.0
+    for gi, (stype, gname, items) in enumerate(SEG5):
+        if gi:
+            y += 0.7                                                              # 組與組之間的空隔
+        ylabels.append((y, gname))
+        bold_rows.append(y)
+        y += 1.0
+        for name, shown in items:
+            n = int(a[(a["segment_type"] == stype) & (a["segment"] == name) & (a["model_type"] == "LR")]["n_rows"].iloc[0])
+            ypos[(stype, name)] = y
+            ylabels.append((y, f"{shown}   (n = {n:,})"))
+            y += 1.0
+    off = {"LR": -0.17, "RF": 0.17}                                               # LR、RF 垂直微錯開
+    for _, r in a.iterrows():
+        yy = ypos[(r["segment_type"], r["segment"])] + off[r["model_type"]]
+        ax.plot([r["ci_low"], r["ci_high"]], [yy, yy], color=COLORS["R1"], lw=1.8, solid_capstyle="butt", zorder=2)
+        ax.plot(r["delta_roc_auc"], yy, marker=MARKERS[r["model_type"]], ms=7, color=COLORS["R1"], mec="black", mew=0.8, zorder=3)
+    ax.axvline(0, color="black", lw=1, ls="--", zorder=1)
+    ax.set_yticks([p for p, _ in ylabels], [t for _, t in ylabels], fontsize=9)
+    for tl, (p, _) in zip(ax.get_yticklabels(), ylabels):
+        if p in bold_rows:
+            tl.set_fontweight("bold")
+    ax.invert_yaxis()
+    ax.set_ylim(y - 0.4, -0.7)
+    lo, hi = a["ci_low"].min(), a["ci_high"].max()
+    pad = 0.06 * (hi - lo)
+    ax.set_xlim(lo - pad, hi + pad)
+    ax.grid(axis="y", visible=False)
+    ax.set_xlabel("ΔAUC (R1 − R0d), setting A pooled OOF")
+    ax.set_title("Where R1 improves on R0d (by segment)", fontsize=11)
+    ax.legend([Line2D([], [], marker="o", color=COLORS["R1"], mec="black", ms=7, lw=1.8), Line2D([], [], marker="s", color=COLORS["R1"], mec="black", ms=7, lw=1.8)],
+              ["LR (circle)", "RF (square)"], loc="lower right", frameon=False, fontsize=8.5)
+    panel_label(ax, "(a)")
+    # ---------------- (b) 校準：點的面積 ∝ 該桶列數；x、y 皆 [0, 1]，1:1
+    bx.plot([0, 1], [0, 1], color="black", lw=1, ls="--", zorder=1)
+    for mt, ls in [("LR", "-"), ("RF", (0, (4, 2)))]:
+        c = b[b["model_type"] == mt].sort_values("bin")
+        bx.plot(c["mean_pred"], c["obs_correct_rate"], color=COLORS["R1"], lw=1.4, ls=ls, zorder=2)
+        bx.scatter(c["mean_pred"], c["obs_correct_rate"], s=22 + 0.03 * c["n_rows"], marker=MARKERS[mt], color=COLORS["R1"],
+                   edgecolor="black", linewidth=0.8, zorder=3)
+    bx.set_xlim(0, 1)
+    bx.set_ylim(0, 1)
+    bx.set_aspect("equal", adjustable="box")
+    bx.set_xlabel("Mean predicted P(correct) per bin")
+    bx.set_ylabel("Observed proportion correct")
+    bx.set_title("Calibration of R1 (10 equal-width bins)", fontsize=11)
+    ece = {mt: b[b["model_type"] == mt]["ece"].iloc[0] for mt in ["LR", "RF"]}
+    h1 = [Line2D([], [], marker="o", color=COLORS["R1"], mec="black", ms=7, lw=1.4),
+          Line2D([], [], marker="s", color=COLORS["R1"], mec="black", ms=7, lw=1.4, ls=(0, (4, 2)))]
+    leg1 = bx.legend(h1, [f"LR (ECE = {ece['LR']:.4f})", f"RF (ECE = {ece['RF']:.4f})"], loc="upper left", frameon=False, fontsize=8.5)
+    bx.add_artist(leg1)
+    h2 = [bx.scatter([], [], s=22 + 0.03 * n, marker="o", color="#bbbbbb", edgecolor="black", linewidth=0.8) for n in (200, 1000, 5000)]
+    bx.legend(h2, ["n = 200", "n = 1,000", "n = 5,000"], title="Bin size (marker area)", loc="lower right", frameon=False,
+              fontsize=8, title_fontsize=8, labelspacing=1.1)
+    panel_label(bx, "(b)")
+    fig.suptitle("Error analysis: segment-wise gain of R1 over R0d, and calibration of R1", fontsize=12, y=0.995)
+    fig.text(0.02, 0.012, "(a) 95% CI: paired student-level cluster bootstrap (2000 resamples, percentile interval); uncorrected for multiple "
+             "comparisons.  Dashed line = no difference.  (b) Dashed diagonal = perfect calibration.", fontsize=8, style="italic", color="#444444", ha="left", va="bottom")
+    fig.tight_layout(rect=(0, 0.05, 1, 0.96))
+    return fig
+
+
 def _bbox(t, r):
     from matplotlib.transforms import Bbox
     bb = t.get_window_extent(r)
@@ -328,7 +434,13 @@ def main() -> None:
     d3.to_csv(DATA + "fig3_behavior_groups.csv", index=False)
     d4.to_csv(DATA + "fig4_cross_school.csv", index=False)
     refs3.to_csv(DATA + "fig3_reference_lines.csv", index=False)
-    for name, fig in [("fig2_ladder", fig2(levels, inc)), ("fig3_behavior_groups", fig3(d3, refs3)), ("fig4_cross_school", fig4(d4))]:
+    d5a, d5b = data_fig5a(), data_fig5b()
+    d5a.to_csv(DATA + "fig5_a_segment_delta_auc.csv", index=False)
+    d5b.to_csv(DATA + "fig5_b_calibration.csv", index=False)
+    zero = d5a[(d5a["ci_low"] <= 0) & (d5a["ci_high"] >= 0)]
+    print("[fig5] CI 含 0 的分段：" + "；".join(f"{r.model_type} {r.segment_type}/{r.segment}" for r in zero.itertuples()))
+    for name, fig in [("fig2_ladder", fig2(levels, inc)), ("fig3_behavior_groups", fig3(d3, refs3)), ("fig4_cross_school", fig4(d4)),
+                      ("fig5_error_analysis", fig5(d5a, d5b))]:
         probs = check_layout(fig)
         print(f"[layout] {name}：" + ("沒有標註互相覆蓋、超出圖框或壓到點／線" if not probs else "; ".join(probs)))
         assert not probs, probs

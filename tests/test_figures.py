@@ -41,13 +41,14 @@ def found(v, arr):
 
 
 def test_files_exist_and_formats():
-    for name in ["fig2_ladder", "fig3_behavior_groups", "fig4_cross_school"]:
+    for name in ["fig2_ladder", "fig3_behavior_groups", "fig4_cross_school", "fig5_error_analysis"]:
         png, svg = f"{FIG}{name}.png", f"{FIG}{name}.svg"
         assert os.path.getsize(png) > 10_000 and os.path.getsize(svg) > 10_000, name
         dpi = Image.open(png).info.get("dpi")
         assert dpi is not None and round(dpi[0]) == 300 and round(dpi[1]) == 300, f"{name} 的 PNG dpi = {dpi}"
         assert ET.parse(svg).getroot().tag.endswith("svg")
-    for f in ["fig2_ladder_levels", "fig2_ladder_increments", "fig3_behavior_groups", "fig3_reference_lines", "fig4_cross_school"]:
+    for f in ["fig2_ladder_levels", "fig2_ladder_increments", "fig3_behavior_groups", "fig3_reference_lines", "fig4_cross_school",
+              "fig5_a_segment_delta_auc", "fig5_b_calibration"]:
         assert os.path.getsize(f"{DATA}{f}.csv") > 0
 
 
@@ -59,7 +60,8 @@ def test_consistent_encoding_constants():
 def test_data_tables_equal_fresh_build():
     lv, inc = mf.data_fig2()
     for name, fresh in [("fig2_ladder_levels", lv), ("fig2_ladder_increments", inc), ("fig3_behavior_groups", mf.data_fig3()),
-                        ("fig4_cross_school", mf.data_fig4()), ("fig3_reference_lines", mf.data_fig3_refs())]:
+                        ("fig4_cross_school", mf.data_fig4()), ("fig3_reference_lines", mf.data_fig3_refs()),
+                        ("fig5_a_segment_delta_auc", mf.data_fig5a()), ("fig5_b_calibration", mf.data_fig5b())]:
         disk = rd(f"{DATA}{name}.csv")
         pd.testing.assert_frame_equal(disk, fresh.reset_index(drop=True), check_exact=True, check_dtype=False, obj=name)
 
@@ -176,7 +178,8 @@ def test_no_label_overlaps_or_out_of_frame():
     """三張圖的標註不互相覆蓋、不超出圖框／座標軸、不壓到資料點與水平線（零線、參考線、平均線）。"""
     lv, inc = mf.data_fig2()
     refs = mf.data_fig3_refs()
-    for name, fig in [("fig2", mf.fig2(lv, inc)), ("fig3", mf.fig3(mf.data_fig3(), refs)), ("fig4", mf.fig4(mf.data_fig4()))]:
+    for name, fig in [("fig2", mf.fig2(lv, inc)), ("fig3", mf.fig3(mf.data_fig3(), refs)), ("fig4", mf.fig4(mf.data_fig4())),
+                      ("fig5", mf.fig5(mf.data_fig5a(), mf.data_fig5b()))]:
         probs = mf.check_layout(fig)
         mf.plt.close(fig)
         assert not probs, f"{name}: {probs}"
@@ -189,12 +192,53 @@ def test_all_figure_data_csvs_are_tracked_by_git():
     assert on_disk and on_disk <= tracked, f"尚未追蹤：{sorted(on_disk - tracked)}"
 
 
+def test_fig5_data_matches_error_csvs():
+    a, b = rd(DATA + "fig5_a_segment_delta_auc.csv"), rd(DATA + "fig5_b_calibration.csv")
+    assert len(a) == 22 and len(b) == 20                                          # 11 分段 × 2 模型；10 bin × 2 模型
+    # ---- (a) 分段 ΔAUC：每個點的 value、CI、n_rows 都與 error_segments.csv 完全一致，且來源恰好就是這 22 列
+    seg = rd(R2 + "error_segments.csv")
+    src = seg[(seg["model"] == "R1 - R0d") & (seg["metric"] == "delta_roc_auc")]
+    assert len(src) == 22
+    key = ["model_type", "segment_type", "segment"]
+    assert set(map(tuple, a[key].to_numpy())) == set(map(tuple, src[key].to_numpy()))
+    m = a.merge(src, on=key, suffixes=("", "_src"), validate="one_to_one")
+    assert (m["delta_roc_auc"] == m["value"]).all() and (m["ci_low"] == m["ci_low_src"]).all()
+    assert (m["ci_high"] == m["ci_high_src"]).all() and (m["n_rows"] == m["n_rows_src"]).all()
+    assert (a["ci_low"] <= a["delta_roc_auc"]).all() and (a["delta_roc_auc"] <= a["ci_high"]).all()
+    # 11 個分段（位置 4、技能 2、item_diff 3、提示歷史 2），LR 與 RF 各一個點，列數相同
+    per = a.groupby(["segment_type", "segment"])
+    assert len(per) == 11 and (per["model_type"].nunique() == 2).all() and (per["n_rows"].nunique() == 1).all()
+    assert a.groupby("segment_type")["segment"].nunique().to_dict() == {"position": 4, "skill": 2, "item_diff": 3, "hint_history": 2}
+    assert list(a.drop_duplicates("row_order")["segment"]) == ["1", "2-4", "5-10", ">=11", "47", "311", "low (<=q33)", "mid (q33-q67]",
+                                                               "high (>q67)", "hint_rate=0 (incl. t=1)", "hint_rate>0"]
+    # ---- (b) 校準：R1 的 10 個 bin；列數、平均預測機率、實際答對率、ECE 都與 error_calibration*.csv 一致
+    cal, ece = rd(R2 + "error_calibration.csv"), rd(R2 + "error_calibration_ece.csv")
+    c = cal[cal["model"] == "R1"]
+    assert len(c) == 20 and set(b["model"]) == {"R1"}
+    mb = b.merge(c, on=["model_type", "bin"], suffixes=("", "_src"), validate="one_to_one")
+    for col in ["bin_low", "bin_high", "n_rows", "mean_pred", "obs_correct_rate"]:
+        assert (mb[col] == mb[col + "_src"]).all(), col
+    for mt in ["LR", "RF"]:
+        assert b[b["model_type"] == mt]["n_rows"].sum() == 30516
+        e = ece[(ece["model_type"] == mt) & (ece["model"] == "R1")]["ece"].iloc[0]
+        assert (b[b["model_type"] == mt]["ece"] == e).all()
+
+
+def test_gitignore_tracks_figures_data_but_not_data():
+    lines = [l.strip() for l in open(".gitignore", encoding="utf-8")]
+    assert lines.count("data/") == 1 and lines.count("!figures/data/") == 1
+    import subprocess
+    tracked = subprocess.run(["git", "ls-files", "data"], capture_output=True, text=True, check=True).stdout.split()
+    assert tracked == [], f"data/ 底下不該有被追蹤的檔案：{tracked}"
+
+
 if __name__ == "__main__":
     tests = [test_files_exist_and_formats, test_consistent_encoding_constants, test_data_tables_equal_fresh_build,
              test_fig2_values_trace_back_and_means_match_05, test_fig3_values_trace_back_and_means_match_05,
              test_fig4_values_trace_back_and_means_match_05, test_every_plotted_number_exists_in_some_source,
              test_fig3_reference_lines_come_from_05_b_paired_A, test_no_label_overlaps_or_out_of_frame,
-             test_all_figure_data_csvs_are_tracked_by_git]
+             test_all_figure_data_csvs_are_tracked_by_git, test_fig5_data_matches_error_csvs,
+             test_gitignore_tracks_figures_data_but_not_data]
     for t in tests:
         try:
             t()
