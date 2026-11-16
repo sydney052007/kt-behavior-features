@@ -46,3 +46,7 @@ results/xschool_run.log,results/03_process/xschool_run.log,03_process
 results/W3_LR結果.xlsx,results/04_exports/W3_LR結果.xlsx,04_exports
 results/W3_RF結果.xlsx,results/04_exports/W3_RF結果.xlsx,04_exports
 results/W3_跨學校結果.xlsx,results/04_exports/W3_跨學校結果.xlsx,04_exports
+results/04_exports/W3_LR結果.xlsx,（已刪除）,已刪除（整理第 2 階段：xlsx 產生器已失效，內容可由 02_analysis 的 csv 重現）
+results/04_exports/W3_RF結果.xlsx,（已刪除）,已刪除（同上）
+results/04_exports/W3_跨學校結果.xlsx,（已刪除）,已刪除（同上）
+src/peek_features.py,（已刪除）,已刪除（整理第 2 階段：沒有任何腳本或測試使用）
