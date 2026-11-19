@@ -104,6 +104,13 @@
 - 05 的寬表用 pandas 預設浮點解析讀長格式再寫出，數值可能與 02 的原始 csv 差 1 個浮點末位（約 1e-17）；測試以 1e-12 容差對回 02。`make_figures.py` 用 `float_precision="round_trip"` 讀檔。
 - 沒有 pytest：每個測試檔可直接 `python3 tests/featurize/test_features.py` 這樣的方式跑（目前 16 個檔案全過）。
 
+### 資料品質備註（2026-11-19，描述性；沒有改任何處理參數，只用 trainval 的聚合統計）
+- `hint_count > 0`（5,958 列）與 `first_action ∈ {1, 2}`（3,553 列）的 `correct` 全為 0，沒有例外（與上面規則一致）。`attempt_count` 沒有這種保證：`attempt_count == 1` 答對率 0.83，≥ 2 不到 1%。
+- **36 列異常（A 組）**：`attempt_count ≥ 2`、無提示、`first_action == 0` 卻 `correct == 1`。36 位不同學生各 1 列；嘗試次數 2 次 30 列、3 次 1 列、4 次 2 列、23 次 2 列、329 次 1 列；`ms_first_response == overlap_time` 占 100%（同條件答錯的列只有 0.03%）。**推測**是 `attempt_count` 的記錄問題（無直接證據，未檢視原始 log）。同條件的 3,018 列中 99.2% 答錯。
+- **550 列 `attempt_count == 0`（B 組）**：94% 在技能 311；511 列 `first_action == 2`（一進題目就要求鷹架，`correct` 全為 0）；答對的 16 列剛好就是 `first_action == 0` 的 16 列，同樣像記錄異常。`ms ≤ 0` 占 1.1%（約 6 列）。這些是主題目（`original == 1`），仍在目標列內。
+- 影響：不影響任何已決定的參數。`attempt_count` 的歷史特徵用 `log1p`、沒有像作答時間一樣截斷；極端值（329 次 → `log1p` 5.80，即 `r1_feature_stats.csv` 中 `last_log_att` 的最大值）只有少數幾十列。**決定：先不改**。報告需要時用一句話交代即可。
+- 另：題目歷史很稀疏——同一學生序列內重複作答同一題只占 1.6%（trainval）；列數 < 20 的題目占全部題目 54%（fold != 0 訓練列為 65%，技能 311 為 84%），但只含 20%（訓練列 29%）的列。
+
 ### 結果資料夾（`results/`）的分類規則與維護
 - `01_preprocessing`：前處理與資料描述（EDA、切分／分組摘要、特徵統計、題目覆蓋）。`02_analysis`：要放進報告的最終分析表；若同一檔案既是分析表又被別的腳本當輸入，放 02，不拆。`03_process`：過程與中間產物（log、僅作過程的網格等）。`05_report_tables`：報告用寬表，由 `src/report/make_report_tables.py` 從 02 的長格式產生，**不重算任何數字**，`tests/report/test_report_tables.py` 檢查每個數字都能回到來源。
 - 一個檔案只放一處，不合併、不拆；不確定時放 `03_process`，並在 `INDEX.md` 標「待我確認」。搬檔用 `git mv`。
