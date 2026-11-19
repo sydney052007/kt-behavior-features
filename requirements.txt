@@ -3,6 +3,6 @@ numpy==2.5.4
 scikit-learn==1.9.1
 matplotlib>=3.8
 openpyxl>=3.1
-python-calamine>=0.2   # 讀 xlsx 快很多（只有 src/xlsx_to_csv.py 用到）
-Pillow==13.0.0     # 只有 tests/test_figures.py 用到
+python-calamine>=0.2   # 讀 xlsx 快很多（只有 src/data_prep/xlsx_to_csv.py 用到）
+Pillow==13.0.0     # 只有 tests/report/test_figures.py 用到
 scipy==1.18.1      # item_diff 平滑參數 m 的估計腳本用（check_smoothing_m）
