@@ -14,6 +14,8 @@ import features_r1 as fr  # noqa: E402
 from cv import run_cv  # noqa: E402
 from features_r1 import R0D_FEATURES, R1_FEATURES, load_r1_frame, make_fold_features  # noqa: E402
 from run_r1_lr import make_model as make_lr  # noqa: E402
+from evaluate import eval_c  # noqa: E402
+from run_xschool import by_cluster  # noqa: E402  # import 只會載入函式與常數，不讀資料、不寫檔（main() 在 __main__ 裡）
 from xschool import (GROUPS_PATH, assign_group_folds, build_groups, inner_groups_by_group,  # noqa: E402
                      item_diff_train_oof_groups, load_trainval_with_org, load_xschool_frame,
                      make_fold_features_xschool)
@@ -162,11 +164,75 @@ def test_unseen_problem_uses_skill_mean_in_xschool_val():
         assert np.allclose(got, unseen["skill_id"].map(p_bar).to_numpy(), atol=1e-12)
 
 
+def _fake_c_oof(seed, n_groups, effect, lo, hi):
+    """假的 OOF（程式內產生，不讀任何真實資料），欄位同 run_xschool 傳給 by_cluster 的 oof：
+    user_id, fold, t, correct, p_correct, grp。每位學生有 t = 1…12 的列（含 C 的切點 t=6、t=11）。
+    每組有一個共同的組效應（logit 位移 ±effect），學生再各自加小雜訊；correct 與 p_correct 都帶這個組效應，
+    所以同組學生的列彼此相關。user_id 從 1001 起、grp 是 0…n_groups-1，兩者數值不同（才分得出有沒有被換掉）。"""
+    rng = np.random.default_rng(seed)
+    offsets = np.linspace(-effect, effect, n_groups)
+    rng.shuffle(offsets)
+    rows, uid = [], 1000
+    for g in range(n_groups):
+        for _ in range(int(rng.integers(lo, hi + 1))):
+            uid += 1
+            student = rng.normal(0, 0.3)
+            for t in range(1, 13):
+                correct = int(rng.random() < 1 / (1 + np.exp(-(offsets[g] + student))))
+                p_correct = 1 / (1 + np.exp(-(offsets[g] + rng.normal(0, 0.3))))
+                rows.append((uid, int(rng.integers(0, 5)), t, correct, p_correct, g))
+    return pd.DataFrame(rows, columns=["user_id", "fold", "t", "correct", "p_correct", "grp"])
+
+
+def test_by_cluster_replaces_user_id_with_group():
+    """by_cluster 要把 user_id 欄換成組別（evaluate 的重抽單位就是這一欄），且不改到原本的 oof。"""
+    oof = _fake_c_oof(seed=0, n_groups=6, effect=1.0, lo=4, hi=8)
+    assert oof["grp"].nunique() == 6 and {6, 11} <= set(oof["t"])
+    assert not oof["user_id"].equals(oof["grp"]), "假資料的 user_id 與 grp 不該相同，否則測不出差別"
+    before = oof.copy(deep=True)
+    out = by_cluster(oof)
+    assert out["user_id"].equals(oof["grp"]), "by_cluster 的 user_id 欄必須等於 grp"
+    assert oof.equals(before), "by_cluster 不可修改傳進去的 oof"
+    assert out is not oof
+    for c in oof.columns.drop("user_id"):
+        assert out[c].equals(oof[c]), f"欄位 {c} 不該被改動"
+    assert list(out.columns) == list(oof.columns) and len(out) == len(oof)
+
+
+def test_cluster_ci_is_wider_than_student_ci():
+    """換重抽單位要真的有效果：組內學生相關時，以組別重抽的 C 信賴區間要比以學生重抽的寬。
+
+    假資料：6 組、每組 8–12 位學生、組效應 ±3.0（logit）。這組參數是挑過的：每組 4–8 人、組效應較小時
+    組別 CI 不一定比較寬（20 個資料種子中只有 14～18 次），因為學生層級的重抽在小組時已經很接近組別層級；
+    調成這組後 20 個種子、t=6 與 t=11 兩個切點都是組別 CI 較寬（寬度比最小 1.47 與 1.11）。"""
+    import contextlib
+    import io
+    n_groups = 6
+    oof = _fake_c_oof(seed=0, n_groups=n_groups, effect=3.0, lo=8, hi=12)
+    n_students = oof["user_id"].nunique()
+    with contextlib.redirect_stdout(io.StringIO()):          # eval_c 遇到單一類別的重抽會印訊息
+        by_student = pd.DataFrame(eval_c(oof, n_boot=300, seed=42))
+        by_group = pd.DataFrame(eval_c(by_cluster(oof), n_boot=300, seed=42))
+
+    def roc_row(d, grp):
+        r = d[(d["metric"] == "roc_auc") & (d["group"] == grp)]
+        assert len(r) == 1
+        return r.iloc[0]
+
+    for grp in ("t=6", "t=11"):
+        a, b = roc_row(by_student, grp), roc_row(by_group, grp)
+        assert a["n_students"] == n_students and b["n_students"] == n_groups, (grp, a["n_students"], b["n_students"])
+        assert np.isclose(a["value"], b["value"], rtol=0, atol=1e-12), "點估計不該因重抽單位而改變"
+        w_student, w_group = a["ci_high"] - a["ci_low"], b["ci_high"] - b["ci_low"]
+        assert w_group > w_student, f"{grp}：組別 CI 寬度 {w_group:.4f} 應大於學生 CI 寬度 {w_student:.4f}"
+
+
 if __name__ == "__main__":
     tests = [test_groups_are_clean_and_folds_disjoint, test_groups_file_matches_recomputation_and_has_no_student_data,
              test_no_test_students_anywhere, test_inner_folds_never_split_a_group, test_item_diff_excludes_own_group,
              test_xschool_features_equal_student_version_when_inner_is_the_same,
-             test_lr_under_student_folds_reproduces_existing_csv, test_unseen_problem_uses_skill_mean_in_xschool_val]
+             test_lr_under_student_folds_reproduces_existing_csv, test_unseen_problem_uses_skill_mean_in_xschool_val,
+             test_by_cluster_replaces_user_id_with_group, test_cluster_ci_is_wider_than_student_ci]
     for t in tests:
         try:
             t()
