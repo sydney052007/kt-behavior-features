@@ -6,7 +6,7 @@ import sys
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import average_precision_score, roc_auc_score
+from sklearn.metrics import accuracy_score, average_precision_score, f1_score, roc_auc_score
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "src"))
 import _setup_path  # noqa: F401,E402  # 把 src/ 底下所有子資料夾加進 import 路徑
@@ -91,8 +91,20 @@ def _wrong_auc(g):
 
 def test_eval_a_matches_sklearn_per_fold():
     old, _ = _toy()
-    rows = eval_a(old, {f: 0.5 for f in range(5)})
+    thr = {f: 0.40 + 0.05 * f for f in range(5)}                # 每個 fold 不同的閾值（分數 >= 閾值 → 預測答錯）
+    rows = eval_a(old, thr)
     rocs, prs = zip(*[_wrong_auc(g) for _, g in old.groupby("fold")])
+    f1s, accs, bases = [], [], []
+    for f, g in old.groupby("fold"):
+        y, pred = 1 - g["correct"].to_numpy(), ((1 - g["p_correct"].to_numpy()) >= thr[f]).astype(int)
+        f1s.append(f1_score(y, pred, zero_division=0))
+        accs.append(accuracy_score(y, pred))
+        bases.append(accuracy_score(y, np.zeros_like(y)))         # 全部猜答對的基準
+    for metric, vals in [("f1", f1s), ("accuracy", accs), ("acc_baseline_all_correct", bases)]:
+        r = _get(rows, "all_rows", metric)
+        assert np.isclose(r["value"], np.mean(vals), atol=1e-12), metric
+        assert np.isclose(r["std"], np.std(vals, ddof=1), atol=1e-12), metric
+    assert np.isclose(_get(rows, "all_rows", "threshold")["value"], np.mean(list(thr.values())), atol=1e-12)
     for metric, vals in [("roc_auc", rocs), ("pr_auc", prs)]:
         r = _get(rows, "all_rows", metric)
         assert np.isclose(r["value"], np.mean(vals), atol=1e-12), metric
