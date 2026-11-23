@@ -66,13 +66,9 @@ def test_threshold_uses_only_training_predictions():
     y_tr = rng.integers(0, 2, 300)
     p_tr = np.clip(0.5 + 0.3 * (y_tr - 0.5) + rng.normal(0, 0.2, 300), 0.01, 0.99)
     thr = select_threshold(y_tr, p_tr)
-    # select_threshold 只收訓練資料；驗證列的標籤不管怎麼改都碰不到它。
-    # 這裡驗證兩件事：(1) 同樣的訓練輸入結果完全相同；(2) 閾值真的是訓練 F1 的最大值。
+    # select_threshold 的簽名只收訓練資料（沒有驗證標籤的參數），所以這裡只驗證兩件事：
+    # (1) 同樣的訓練輸入結果完全相同；(2) 閾值真的是訓練 F1 的最大值。
     assert select_threshold(y_tr.copy(), p_tr.copy()) == thr
-    y_val = rng.integers(0, 2, 100)
-    y_val_flipped = 1 - y_val                      # 改變驗證標籤
-    assert select_threshold(y_tr, p_tr) == thr     # 閾值不受影響
-    assert not np.array_equal(y_val, y_val_flipped)
 
     def f1_at(t):
         score, y = 1 - p_tr, 1 - y_tr

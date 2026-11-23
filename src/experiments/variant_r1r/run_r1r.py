@@ -41,6 +41,12 @@ PERM_GROUPS = {
 MIN_DELTA, MIN_FOLDS = 0.002, 4          # 判準（寫死）
 
 
+def r1r_verdict(delta, n_folds_better) -> str:
+    """判準（寫死）：平均 ΔAUC ≥ MIN_DELTA 且至少 MIN_FOLDS 個 fold 較好 → 『R1 的改良版』。"""
+    ok = (delta >= MIN_DELTA) and (n_folds_better >= MIN_FOLDS)
+    return "R1 的改良版" if ok else "沒有明顯改善的變體"
+
+
 def caching_builder():
     """同一個 fold 的特徵只算一次（以驗證 fold 編號當 key）。"""
     cache = {}
@@ -188,8 +194,7 @@ def main() -> None:
 
     # ---- 判準（寫死）
     v = paired[(paired.analysis == "own_best") & (paired.model_type == "RF") & (paired.comparison == "R1r - R1") & (paired["eval"] == "A")].iloc[0]
-    ok = (v.delta >= MIN_DELTA) and (v.n_folds_better >= MIN_FOLDS)
-    verdict = "R1 的改良版" if ok else "沒有明顯改善的變體"
+    verdict = r1r_verdict(v.delta, v.n_folds_better)
     pd.DataFrame([dict(rule=f"RF 的 A：R1r − R1 平均 ΔAUC ≥ {MIN_DELTA:+.3f} 且至少 {MIN_FOLDS}/5 fold 較好", delta_auc=v.delta,
                        n_folds_better=int(v.n_folds_better), verdict=verdict)]).to_csv("results/02_analysis/r1r_verdict.csv", index=False)
     print(f"\n=== 判準：RF 的 A，R1r − R1 平均 ΔAUC = {v.delta:+.4f}（門檻 ≥ {MIN_DELTA:+.3f}），較好 {int(v.n_folds_better)}/5（門檻 ≥ {MIN_FOLDS}）"

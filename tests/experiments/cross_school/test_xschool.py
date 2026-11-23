@@ -227,12 +227,53 @@ def test_cluster_ci_is_wider_than_student_ci():
         assert w_group > w_student, f"{grp}：組別 CI 寬度 {w_group:.4f} 應大於學生 CI 寬度 {w_student:.4f}"
 
 
+def _fake_org(shuffle_seed=None):
+    """build_groups 只看 school_id、teacher_id、student_class_id（型別與真實資料相同：int64）。
+    學校 1—2 共用 class 201；2—3 共用 teacher 102；學校 4 與誰都不共用；5—6 只共用 teacher 105。"""
+    rows = [  # (school_id, teacher_id, student_class_id)
+        (1, 101, 201), (1, 101, 201),
+        (2, 102, 201), (2, 102, 202),
+        (3, 102, 203), (3, 103, 203),
+        (4, 104, 204), (4, 104, 204),
+        (5, 105, 205), (6, 105, 206),
+    ]
+    df = pd.DataFrame(rows, columns=["school_id", "teacher_id", "student_class_id"]).astype("int64")
+    if shuffle_seed is not None:
+        df = df.sample(frac=1, random_state=shuffle_seed).reset_index(drop=True)
+    return df
+
+
+def test_build_groups_transitive_minimal_and_deterministic():
+    tv = _fake_org()
+    g = build_groups(tv)
+    assert g.index.is_monotonic_increasing and list(g.index) == [1, 2, 3, 4, 5, 6]
+    assert g[1] == g[2] == g[3], "傳遞性：1—2（class）、2—3（teacher）→ 同一組"
+    assert g[4] != g[1] and g[4] != g[5], "最小性：學校 4 沒有共用 → 自己一組"
+    assert (g == g[4]).sum() == 1
+    assert g[5] == g[6] and g[5] != g[1], "另一條鏈：5—6 只靠 teacher → 同一組，且不與 1、2、3 同組"
+    # group_id 依組內最小 school_id 由小到大編號 0…
+    assert g.to_dict() == {1: 0, 2: 0, 3: 0, 4: 1, 5: 2, 6: 2}
+    # 確定性：呼叫兩次相同；列順序打亂也相同
+    assert build_groups(tv).equals(g)
+    for seed in (0, 1, 2):
+        assert build_groups(_fake_org(shuffle_seed=seed)).equals(g)
+
+
+def test_build_groups_numbering_follows_min_school_id_not_appearance_order():
+    # 學校 9 先出現、與學校 3 共用 class；學校 5 單獨。依最小 school_id：{3, 9} → 0，{5} → 1
+    tv = pd.DataFrame({"school_id": [9, 3, 5], "teacher_id": [1, 2, 3],
+                       "student_class_id": [7, 7, 8]}).astype("int64")
+    assert build_groups(tv).to_dict() == {3: 0, 5: 1, 9: 0}
+
+
 if __name__ == "__main__":
     tests = [test_groups_are_clean_and_folds_disjoint, test_groups_file_matches_recomputation_and_has_no_student_data,
              test_no_test_students_anywhere, test_inner_folds_never_split_a_group, test_item_diff_excludes_own_group,
              test_xschool_features_equal_student_version_when_inner_is_the_same,
              test_lr_under_student_folds_reproduces_existing_csv, test_unseen_problem_uses_skill_mean_in_xschool_val,
-             test_by_cluster_replaces_user_id_with_group, test_cluster_ci_is_wider_than_student_ci]
+             test_by_cluster_replaces_user_id_with_group, test_cluster_ci_is_wider_than_student_ci,
+             test_build_groups_transitive_minimal_and_deterministic,
+             test_build_groups_numbering_follows_min_school_id_not_appearance_order]
     for t in tests:
         try:
             t()

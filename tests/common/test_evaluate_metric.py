@@ -10,7 +10,8 @@ from sklearn.metrics import average_precision_score, roc_auc_score
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "src"))
 import _setup_path  # noqa: F401,E402  # 把 src/ 底下所有子資料夾加進 import 路徑
-from evaluate import paired_delta_c, per_fold_auc, per_fold_metric  # noqa: E402
+from evaluate import (BUCKETS, eval_a, eval_b, eval_c, paired_delta_c, per_fold_auc,  # noqa: E402
+                      per_fold_metric)
 
 
 def _toy(n_users=120, seed=0):
@@ -54,7 +55,7 @@ def test_paired_delta_c_metric_option():
             exp = fn(y, 1 - b["p_correct"].to_numpy()) - fn(y, 1 - a["p_correct"].to_numpy())
             got = df_out.loc[df_out["group"] == f"t={k}", "delta_auc"].iloc[0]
             assert np.isclose(got, exp), (k, got, exp)
-    # 信賴區間包住（或貼近）點估計；固定種子重跑相同
+    # 信賴區間：下界 ≤ 上界（沒有檢查是否包住點估計）；固定種子重跑相同
     for out in (roc, pr):
         assert (out["ci_low"] <= out["ci_high"]).all()
     again = paired_delta_c(old, new, metric="pr_auc", **kw)
@@ -75,8 +76,70 @@ def test_paired_delta_c_is_paired():
         assert (out["delta_auc"] == 0).all() and (out["ci_low"] == 0).all() and (out["ci_high"] == 0).all()
 
 
+def _get(rows, group, metric):
+    """從 eval_* 回傳的 dict 列表取出 (group, metric) 那一列（必須恰好一列）。"""
+    hit = [r for r in rows if r["group"] == group and r["metric"] == metric]
+    assert len(hit) == 1, (group, metric)
+    return hit[0]
+
+
+def _wrong_auc(g):
+    """sklearn 獨立重算：答錯為正類 → (ROC-AUC, PR-AUC)。"""
+    y, s = 1 - g["correct"].to_numpy(), 1 - g["p_correct"].to_numpy()
+    return roc_auc_score(y, s), average_precision_score(y, s)
+
+
+def test_eval_a_matches_sklearn_per_fold():
+    old, _ = _toy()
+    rows = eval_a(old, {f: 0.5 for f in range(5)})
+    rocs, prs = zip(*[_wrong_auc(g) for _, g in old.groupby("fold")])
+    for metric, vals in [("roc_auc", rocs), ("pr_auc", prs)]:
+        r = _get(rows, "all_rows", metric)
+        assert np.isclose(r["value"], np.mean(vals), atol=1e-12), metric
+        assert np.isclose(r["std"], np.std(vals, ddof=1), atol=1e-12), metric   # 樣本標準差（ddof=1）
+        assert r["n_rows"] == len(old) and r["n_students"] == old["user_id"].nunique()
+    assert np.std(rocs, ddof=1) != np.std(rocs, ddof=0)                         # 確認 ddof 真的有差
+
+
+def test_eval_b_buckets_match_sklearn_and_differ_from_fold_mean():
+    old, _ = _toy()
+    rows = eval_b(old)
+    assert [b[0] for b in BUCKETS] == ["t=1", "t=2-4", "t=5-10", "t=11+"]
+    spans = {"t=1": (1, 1), "t=2-4": (2, 4), "t=5-10": (5, 10), "t=11+": (11, 99)}
+    for name, (lo, hi) in spans.items():
+        g = old[(old["t"] >= lo) & (old["t"] <= hi)]
+        roc, pr = _wrong_auc(g)                                   # 合併 OOF 在該桶的列
+        assert np.isclose(_get(rows, name, "roc_auc")["value"], roc, atol=1e-12), name
+        assert np.isclose(_get(rows, name, "pr_auc")["value"], pr, atol=1e-12), name
+        assert np.isclose(_get(rows, name, "wrong_rate")["value"], 1 - g["correct"].mean(), atol=1e-12)
+        r = _get(rows, name, "roc_auc")
+        assert r["n_rows"] == len(g) and r["n_students"] == g["user_id"].nunique(), name
+        # B 是「合併後」的 AUC，不是各 fold AUC 的平均：兩者不相等（觀念：合併 ≠ 平均）
+        fold_mean = np.mean([_wrong_auc(gf)[0] for _, gf in g.groupby("fold")])
+        assert not np.isclose(roc, fold_mean, atol=1e-9), (name, roc, fold_mean)
+    # 全部列也是一樣：合併 AUC ≠ 各 fold AUC 平均
+    assert not np.isclose(_wrong_auc(old)[0], np.mean([_wrong_auc(g)[0] for _, g in old.groupby("fold")]), atol=1e-9)
+
+
+def test_eval_c_point_estimates_and_counts_match_sklearn():
+    old, _ = _toy()
+    rows = eval_c(old, cut_points=(6, 11), n_boot=100, seed=7)
+    assert {r["group"] for r in rows} == {"t=6", "t=11"} and len(rows) == 6
+    for k in (6, 11):
+        g = old[old["t"] == k]                                    # 切點 = 第 k 題那一列（每位學生 1 列）
+        roc, pr = _wrong_auc(g)
+        for metric, exp in [("roc_auc", roc), ("pr_auc", pr)]:
+            r = _get(rows, f"t={k}", metric)
+            assert np.isclose(r["value"], exp, atol=1e-12), (k, metric)
+            assert r["n_rows"] == len(g) == g["user_id"].nunique() == r["n_students"], (k, metric)
+            assert r["ci_low"] <= r["ci_high"]
+        assert np.isclose(_get(rows, f"t={k}", "wrong_rate")["value"], 1 - g["correct"].mean(), atol=1e-12)
+
+
 if __name__ == "__main__":
-    tests = [test_per_fold_metric_matches_sklearn, test_paired_delta_c_metric_option, test_paired_delta_c_is_paired]
+    tests = [test_per_fold_metric_matches_sklearn, test_paired_delta_c_metric_option, test_paired_delta_c_is_paired,
+             test_eval_a_matches_sklearn_per_fold, test_eval_b_buckets_match_sklearn_and_differ_from_fold_mean,
+             test_eval_c_point_estimates_and_counts_match_sklearn]
     for t in tests:
         try:
             t()

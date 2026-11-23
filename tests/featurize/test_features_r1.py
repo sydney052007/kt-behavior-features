@@ -50,22 +50,59 @@ def _scalar_std_time(ms, problem, stats):
 
 # ------------------------------------------------------------------ 1. 慢算法重算
 
+def _slow_item_diff_tools(train):
+    """逐列迴圈累計題目作答數，回傳 item_diff(skill, problem, 組別或 None) 的慢算函式。
+
+    訓練列（組別 = 它的 inner 組）：只用「其他組」學生的作答 = 全體 − 自己那一組。
+    驗證列（組別 = None）：用整個訓練集。分組本身用 features_r1.inner_groups（那是 sklearn 的分組，不是特徵）。
+    """
+    grp_of = dict(zip(train["order_id"], inner_groups(train)))
+    tot_k, tot_n, g_k, g_n = {}, {}, {}, {}      # 以 (技能, 題目) 為 key；g_ 版本多一個組別
+    sk_k, sk_n, skg_k, skg_n = {}, {}, {}, {}    # 以技能為 key（算 p̄）
+    for r in train.itertuples():
+        g, c = grp_of[r.order_id], float(r.correct)
+        for d, key in [(tot_k, (r.skill_id, r.problem_id)), (g_k, (g, r.skill_id, r.problem_id)),
+                       (sk_k, r.skill_id), (skg_k, (g, r.skill_id))]:
+            d[key] = d.get(key, 0.0) + c
+        for d, key in [(tot_n, (r.skill_id, r.problem_id)), (g_n, (g, r.skill_id, r.problem_id)),
+                       (sk_n, r.skill_id), (skg_n, (g, r.skill_id))]:
+            d[key] = d.get(key, 0) + 1
+
+    def item_diff(skill, problem, g):
+        k, n = tot_k.get((skill, problem), 0.0), tot_n.get((skill, problem), 0)
+        sk, sn = sk_k[skill], sk_n[skill]
+        if g is not None:                       # 扣掉自己那一組
+            k -= g_k.get((g, skill, problem), 0.0)
+            n -= g_n.get((g, skill, problem), 0)
+            sk -= skg_k.get((g, skill), 0.0)
+            sn -= skg_n.get((g, skill), 0)
+        m = ITEM_M[skill]
+        return (k + m * (sk / sn)) / (n + m)
+    return item_diff, grp_of
+
+
 def test_slow_loop_matches_vectorized():
+    """對 R1_FEATURES 的『每一個』欄位，與獨立的逐列慢算法比對（只用第 1…t-1 列）。"""
     train, val, tf, vf, st = _fold(0)
     allraw = pd.concat([train, val]).set_index("order_id")
     feat = pd.concat([tf, vf]).set_index("order_id")
     fills = st["fills"]
+    item_diff, grp_of = _slow_item_diff_tools(train)
+    train_ids = set(train["order_id"])
 
     seqs = allraw.groupby(["user_id", "skill_id"]).size().index.to_list()
     rng = np.random.default_rng(0)
     picked = [seqs[i] for i in rng.choice(len(seqs), size=300, replace=False)]
 
-    n_rows = n_bad = 0
+    n_rows = n_train = n_val = 0
+    bad = {c: 0 for c in R1_FEATURES}                     # 每個欄位各自記錄不一致的列數
     for uid, sk in picked:
         rows = allraw[(allraw["user_id"] == uid) & (allraw["skill_id"] == sk)].sort_index()
         recs = rows.reset_index().to_dict("records")       # 依 order_id 排序的 dict 列表
         for i, r in enumerate(recs):
             hist = recs[:i]                                # 第 1…t-1 列（雙層迴圈：這裡逐一掃）
+            n_c = sum(h["correct"] == 1 for h in hist)     # 前面答對、答錯次數
+            n_w = len(hist) - n_c
             if hist:
                 hint_rate = sum(h["hint_count"] > 0 for h in hist) / len(hist)
                 last_hint = float(hist[-1]["hint_count"] > 0)
@@ -73,23 +110,35 @@ def test_slow_loop_matches_vectorized():
                 for h in hist:
                     v = _scalar_std_time(h["ms_first_response"], h["problem_id"], st)
                     times.append(fills["log_time"] if v is None else v)   # 缺失填訓練集平均
-                mean_log_time = sum(times) / len(times)
-                last_log_att = math.log1p(hist[-1]["attempt_count"])
+                mean_log_time, last_log_time = sum(times) / len(times), times[-1]
+                atts = [math.log1p(h["attempt_count"]) for h in hist]
+                mean_log_att, last_log_att = sum(atts) / len(atts), atts[-1]
                 scaffold_rate = sum(h["first_action"] == 2 for h in hist) / len(hist)
                 last_correct = float(hist[-1]["correct"])
             else:
                 hint_rate = last_hint = fills["hint"]
-                mean_log_time = fills["log_time"]
-                last_log_att = fills["log_att"]
+                mean_log_time = last_log_time = fills["log_time"]
+                mean_log_att = last_log_att = fills["log_att"]
                 scaffold_rate = fills["scaffold"]
                 last_correct = fills["last_correct"]
-            expect = dict(hint_rate=hint_rate, last_hint=last_hint, mean_log_time=mean_log_time,
-                          last_log_att=last_log_att, scaffold_rate=scaffold_rate,
-                          last_correct=last_correct)
+            is_train = r["order_id"] in train_ids
+            expect = dict(
+                log1p_c=math.log1p(n_c), log1p_w=math.log1p(n_w),
+                skill_311=int(r["skill_id"] == "311"), has_history=int(i > 0),
+                item_diff=item_diff(r["skill_id"], r["problem_id"], grp_of[r["order_id"]] if is_train else None),
+                last_correct=last_correct, hint_rate=hint_rate, last_hint=last_hint,
+                mean_log_time=mean_log_time, last_log_time=last_log_time,
+                mean_log_att=mean_log_att, last_log_att=last_log_att, scaffold_rate=scaffold_rate)
+            assert set(expect) == set(R1_FEATURES), "慢算法沒有涵蓋 R1_FEATURES 的每個欄位"
             n_rows += 1
-            if not all(np.isclose(feat.loc[r["order_id"], k], v, atol=1e-9) for k, v in expect.items()):
-                n_bad += 1
-    assert n_rows > 1000 and n_bad == 0, f"{n_bad}/{n_rows} 列與慢算法不一致"
+            n_train += is_train
+            n_val += not is_train
+            for k, v in expect.items():
+                if not np.isclose(feat.loc[r["order_id"], k], v, atol=1e-9):
+                    bad[k] += 1
+    assert n_rows > 1000 and n_train > 0 and n_val > 0, (n_rows, n_train, n_val)   # 訓練列與驗證列都有比到
+    bad = {k: v for k, v in bad.items() if v}
+    assert not bad, f"與慢算法不一致的列數（欄位: 列數）：{bad}，共比對 {n_rows} 列"
 
 
 # ------------------------------------------------------------------ 2. 因果性
@@ -110,7 +159,7 @@ def _perturb(df, order_ids, rng):
 def test_own_behavior_never_enters_own_features_and_flows_to_next_row():
     train, val, tf, vf, st = _fold(0)
     rng = np.random.default_rng(1)
-    n_next_checked = 0
+    n_next_checked = {"val": 0, "train": 0}      # 兩個分支各自累計
     for name, part, base_feat in [("val", val, vf), ("train", train, tf)]:
         nxt = part.groupby(["user_id", "skill_id"])["order_id"].shift(-1)
         cand = part.index[nxt.notna() & (part["t"] >= 2)]
@@ -132,28 +181,29 @@ def test_own_behavior_never_enters_own_features_and_flows_to_next_row():
                         & (part["t"] == part.at[idx, "t"] - 1)]["order_id"].iloc[0]
             assert np.allclose(a.loc[prev, R1_FEATURES].astype(float),
                                b.loc[prev, R1_FEATURES].astype(float), atol=1e-12)
-            # 下一列：該欄位「本來有影響」的特徵要跟著變
-            if name == "val":
-                old = fr._row_signals(part.loc[[idx]]).iloc[0]
-                new = fr._row_signals(mod[mod["order_id"] == oid]).iloc[0]
-                old_t = fr._std_time(part.loc[[idx]], st["p1"], st["p99"], st["item_log_median"]).fillna(st["fills"]["log_time"]).iloc[0]
-                new_t = fr._std_time(mod[mod["order_id"] == oid], st["p1"], st["p99"], st["item_log_median"]).fillna(st["fills"]["log_time"]).iloc[0]
-                changed = {
-                    "last_correct": part.at[idx, "correct"] != mod.loc[mod["order_id"] == oid, "correct"].iloc[0],
-                    "last_hint": old["hint_flag"] != new["hint_flag"],
-                    "hint_rate": old["hint_flag"] != new["hint_flag"],
-                    "scaffold_rate": old["scaffold_flag"] != new["scaffold_flag"],
-                    "last_log_att": old["log_att"] != new["log_att"],
-                    "mean_log_att": old["log_att"] != new["log_att"],
-                    "last_log_time": old_t != new_t,
-                    "mean_log_time": old_t != new_t,
-                }
-                for feat_name, should_change in changed.items():
-                    if should_change:
-                        n_next_checked += 1
-                        assert a.loc[nxt_oid, feat_name] != b.loc[nxt_oid, feat_name], \
-                            f"{feat_name}：改了第 t 列，第 t+1 列沒跟著變"
-    assert n_next_checked > 100      # 確認「會影響下一列」的情況真的有被檢查到
+            # 下一列：該欄位「本來有影響」的特徵要跟著變（驗證分支與訓練分支都檢查）
+            old = fr._row_signals(part.loc[[idx]]).iloc[0]
+            new = fr._row_signals(mod[mod["order_id"] == oid]).iloc[0]
+            old_t = fr._std_time(part.loc[[idx]], st["p1"], st["p99"], st["item_log_median"]).fillna(st["fills"]["log_time"]).iloc[0]
+            new_t = fr._std_time(mod[mod["order_id"] == oid], st["p1"], st["p99"], st["item_log_median"]).fillna(st["fills"]["log_time"]).iloc[0]
+            changed = {
+                "last_correct": part.at[idx, "correct"] != mod.loc[mod["order_id"] == oid, "correct"].iloc[0],
+                "last_hint": old["hint_flag"] != new["hint_flag"],
+                "hint_rate": old["hint_flag"] != new["hint_flag"],
+                "scaffold_rate": old["scaffold_flag"] != new["scaffold_flag"],
+                "last_log_att": old["log_att"] != new["log_att"],
+                "mean_log_att": old["log_att"] != new["log_att"],
+                "last_log_time": old_t != new_t,
+                "mean_log_time": old_t != new_t,
+            }
+            for feat_name, should_change in changed.items():
+                if should_change:
+                    n_next_checked[name] += 1
+                    assert a.loc[nxt_oid, feat_name] != b.loc[nxt_oid, feat_name], \
+                        f"{name}：{feat_name}：改了第 t 列，第 t+1 列沒跟著變"
+    # 確認「會影響下一列」的情況在兩個分支都真的有被檢查到
+    assert n_next_checked["val"] > 0 and n_next_checked["train"] > 0, n_next_checked
+    assert min(n_next_checked.values()) > 50, n_next_checked
 
 
 # ------------------------------------------------------------------ 3. item_diff 不含自己

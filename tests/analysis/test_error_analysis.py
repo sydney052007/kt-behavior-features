@@ -13,6 +13,7 @@ import pandas as pd
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "src"))
 import _setup_path  # noqa: F401,E402  # 把 src/ 底下所有子資料夾加進 import 路徑
 import run_error_analysis as ea  # noqa: E402
+from evaluate import paired_delta_c  # noqa: E402
 
 OUT = ea.OUT
 N = 30516
@@ -97,6 +98,14 @@ def test_confusion_and_high_confidence_counts():
     runs = _runs()
     fresh = ea.confusion_table(runs)
     assert (fresh["count"].to_numpy() == conf["count"].to_numpy()).all()
+    # 高信心表：用重新產生的 OOF 重算，n_rows、region_rows 逐列與存好的 csv 完全相等
+    fresh_hg = ea.high_confidence_tables(runs)[0]
+    key = ["model_type", "model", "group"]
+    assert len(fresh_hg) == len(hg) == 8 and not hg.duplicated(key).any()
+    a, b = fresh_hg.set_index(key), hg.set_index(key)
+    assert set(a.index) == set(b.index)
+    for col in ["n_rows", "region_rows"]:
+        assert (a[col] == b.loc[a.index, col]).all(), f"{col} 與存好的 error_high_conf_groups.csv 不同"
 
 
 def test_d_no_student_level_columns_and_no_row_level_data():
@@ -135,11 +144,52 @@ def test_e_hint_excl_t1_supplement_is_consistent_with_original_segments():
     assert len(dd) == 4 and (dd["ci_low"] <= dd["value"]).all() and (dd["value"] <= dd["ci_high"]).all()
 
 
+def _fake_scores(n_users=60, per_user=12, seed=0):
+    """每位學生多列的假資料：回傳 (y 答錯為正類, 舊模型分數, 新模型分數, user_id, t)。"""
+    rng = np.random.default_rng(seed)
+    uid = np.repeat(np.arange(n_users), per_user)
+    t = np.tile(np.arange(1, per_user + 1), n_users)
+    y = rng.integers(0, 2, len(uid))
+    s_old = np.clip(0.35 + 0.2 * y + rng.random(len(uid)) * 0.5, 0.01, 0.99)
+    s_new = np.clip(0.25 + 0.4 * y + rng.random(len(uid)) * 0.4, 0.01, 0.99)
+    return y, s_old, s_new, uid, t
+
+
+def test_f_paired_delta_ci_zero_for_identical_models_and_reproducible():
+    y, s_old, s_new, uid, _ = _fake_scores()
+    # 兩個模型分數相同 → 點估計與整個 CI 都是 0（若不是配對重抽，CI 不會是 0）
+    pt, lo, hi = ea.paired_delta_ci(y, s_old, s_old.copy(), uid, n_boot=200, seed=42)
+    assert pt == 0 and lo == 0 and hi == 0
+    # 兩個不同的模型：固定種子重跑完全相同，換種子 CI 會不同（確認種子真的有作用）
+    r1 = ea.paired_delta_ci(y, s_old, s_new, uid, n_boot=200, seed=42)
+    r2 = ea.paired_delta_ci(y, s_old, s_new, uid, n_boot=200, seed=42)
+    r3 = ea.paired_delta_ci(y, s_old, s_new, uid, n_boot=200, seed=43)
+    assert r1 == r2 and r1[0] == r3[0] and r1[1:] != r3[1:]
+    assert r1[1] < r1[2]                                      # 區間不是退化的
+
+
+def test_g_paired_delta_ci_equals_evaluate_paired_delta_c():
+    """paired_delta_ci 與 evaluate.paired_delta_c 的重抽程序相同（種子、依學生分組的順序、cluster_resample_indices、
+    略過單一類別的規則），所以同一批列（t == 切點）、同一個種子與 n_boot 下，點估計與 CI 都應相等。"""
+    y, s_old, s_new, uid, t = _fake_scores()
+    base = pd.DataFrame({"user_id": uid, "order_id": np.arange(len(uid)), "t": t, "correct": 1 - y})
+    old, new = base.assign(p_correct=1 - s_old), base.assign(p_correct=1 - s_new)
+    for k in (6, 11):
+        out = paired_delta_c(old, new, cut_points=(k,), n_boot=200, seed=42).iloc[0]
+        m = t == k                                            # 每位學生恰 1 列；列順序 = order_id 順序
+        pt, lo, hi = ea.paired_delta_ci(y[m], s_old[m], s_new[m], uid[m], n_boot=200, seed=42)
+        assert abs(pt - out["delta_auc"]) < 1e-12 and abs(lo - out["ci_low"]) < 1e-12 \
+            and abs(hi - out["ci_high"]) < 1e-12, (k, (pt, lo, hi), out.to_dict())
+        assert lo < hi
+
+
 if __name__ == "__main__":
     tests = [test_a_reproduces_existing_A_results, test_b_segments_partition_all_rows_and_counts_sum_to_total,
              test_c_calibration_bins_sum_to_total_and_ece, test_confusion_and_high_confidence_counts,
              test_d_no_student_level_columns_and_no_row_level_data,
-             test_e_hint_excl_t1_supplement_is_consistent_with_original_segments]
+             test_e_hint_excl_t1_supplement_is_consistent_with_original_segments,
+             test_f_paired_delta_ci_zero_for_identical_models_and_reproducible,
+             test_g_paired_delta_ci_equals_evaluate_paired_delta_c]
     for t in tests:
         try:
             t()
