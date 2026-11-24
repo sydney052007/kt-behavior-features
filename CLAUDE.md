@@ -77,6 +77,14 @@
 - 報告：每個設定 × 每個（模型, 特徵集）的 A ROC-AUC 平均；相對採用值的差；R1 − R0d 的 A 差值（平均、各 fold 差、較好 fold 數，LR 與 RF 各一份）。
 - 判準（跑之前寫死）：對每個（模型, 特徵集），任何一個設定相對採用值的 |ΔA ROC-AUC| < 0.002，且各設定下 R1 − R0d 都是 5/5 fold 較好 → 「不敏感」；否則 → 「敏感」。整體判讀：四個（模型, 特徵集）全部不敏感才算整體不敏感。
 
+## test 最終評估協定（跑之前登記，看到結果後不得修改；只能跑一次）
+- 模型：R0、R0d、R1，各用 LR 與 RF，共 6 組。R1r 與 R0d_rel 不進 test。
+- 最終訓練：用全部 trainval（1,481 位學生）訓練。RF 超參數沿用 5-fold 選出的（R0：depth 8、leaf 50；R0d：depth 8、leaf 5；R1：depth None、leaf 50；300 棵、sqrt、種子 42、n_jobs=-1），不重新搜尋；LR = StandardScaler + LogisticRegression(C=np.inf)。所有訓練集統計量（p1、p99、各題中位數、填補值、item_diff）改由全 trainval 重算；訓練列的 item_diff 用 inner OOF（依 user_id、shuffle、種子 42），test 列用全 trainval，沒見過的題目 = p̄。F1／Accuracy 的閾值用最終模型在 trainval 訓練列上的預測選（同 `select_threshold`）。test 學生的歷史特徵只用自己的過去作答。
+- 報告：(1) 全部列的 ROC-AUC 與 PR-AUC，附學生為單位的 cluster bootstrap 95% 信賴區間（2000 次、種子 42）；(2) R1 − R0d、R0d − R0 的配對 ΔAUC 與配對 cluster bootstrap 區間（全部列與 C 的 t = 6、11；LR、RF 各一份）；(3) B 位置分桶、C（t = 6、11，附區間）；(4) F1、Accuracy、混淆矩陣（描述性）；(5) 與 5-fold 的 A 平均 ± 標準差並列。
+- 判讀規則：任何比較，信賴區間含 0 → 寫「無法確認」，不下結論。test 結果不用來調整任何設定，不論好壞照實報告；若 test 比驗證差，一併寫出。
+- 輸出只有彙總，不含 user_id、school_id；逐列預測不存進 repo。結果檔 `results/02_analysis/test_final_*.csv`；只能跑一次：輸出檔已存在就中止。
+- 變體總數：R1 特徵版本 = 2（R1、R1r）；另記錄 m 敏感度實驗 1 次（只報告，m 不變，結果：不敏感）。
+
 ## 變體紀錄（調整次數；報告要明說）
 - **R1r 是看過 R1 結果之後才設計的事後變體**（R1 = R0d + 7 個行為特徵；R1r = R1 + 4 個「相對於題目平均」的特徵 `rel_hint_mean`、`rel_hint_last`、`rel_att_mean`、`rel_att_last`，實作在 `src/featurize/features_r1r.py`）。R0d_rel = R0d + 同樣 4 個特徵，只當診斷。
 - 到目前為止嘗試過的 R1 特徵版本數 = **2**（R1、R1r）。之後若再加特徵變體，要在這裡累計並在報告說明。
