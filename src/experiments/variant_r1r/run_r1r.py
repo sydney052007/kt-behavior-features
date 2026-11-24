@@ -1,7 +1,8 @@
 """R1r（R1 + 4 個相對於題目平均的行為特徵）與 R0d_rel（R0d + 同樣 4 個）的 LR 與 RF 評估。
 
     python3 src/experiments/variant_r1r/run_r1r.py > results/03_process/r1r_run.log 2>&1
-事先決定、不依結果修改：
+R1r 的特徵本身是看過 R1 結果之後才設計的事後變體；事先決定、不依結果修改的只有下列模型設定與判準
+（LR 設定、RF 網格、判準）：
   * 模型：LR（StandardScaler + LogisticRegression(C=np.inf)）；RF（300 棵、sqrt、種子 42、n_jobs=-1，
     網格 max_depth ∈ {8,16,None} × min_samples_leaf ∈ {5,20,50}，共 9 組），選擇只看 5-fold 的 A ROC-AUC 平均。
   * R1、R0d 的數字沿用既有結果：LR 讀 data/interim/oof_cmp_*.csv；RF 只重跑各自最佳的那一個設定

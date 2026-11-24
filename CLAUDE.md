@@ -33,7 +33,7 @@
 ## 已決定（11/3）
 - 序列第 1 列（沒有歷史）：保留為目標。次數類特徵 = 0；比率類特徵用訓練集平均；加 `has_history` 旗標；位置分桶「1」單獨報告。
 - Level 3 延伸只做**跨學校**（以學校分組 5-fold）；**leakage 稽核取消**。
-- R0 模型特徵 = `log1p_c`、`log1p_w`、`skill_311`、`has_history`（常數 `R0_FEATURES` 在 `src/featurize/features.py`）；`t` 只是欄位，不進模型，因為 `t = c + w + 1` 會共線。一個共用模型、不分技能交互、R0 的 LR 不加正則化（`C=np.inf`，等同 `penalty=None`，但避免 sklearn 1.8 之後的棄用警告）。
+- R0 模型特徵 = `log1p_c`、`log1p_w`、`skill_311`、`has_history`（常數 `R0_FEATURES` 在 `src/featurize/features.py`）；`t` 只當欄位（位置分桶用），不進模型：t 與 c + w 資訊重複（`t = c + w + 1`），模型用的是 `log1p_c`、`log1p_w`。一個共用模型、不分技能交互、R0 的 LR 不加正則化（`C=np.inf`，等同 `penalty=None`，但避免 sklearn 1.8 之後的棄用警告）。
 - 次數用 `log1p`：R0 的 5-fold 試跑顯示比原始次數好約 0.012 AUC，5 個 fold 一致；R1 沿用同樣設定。
 - 評估 A（全部列，主要，選模型與調參以它為準）、B（位置分桶）、C（固定切點）每個模型都要全部報告，評估寫成 `src/common/evaluate.py` 可重用。
 - 固定切點事先定為兩個：前 5 題 → 第 6 題（t=6）、前 10 題 → 第 11 題（t=11），不依分數挑；信賴區間用以學生為單位重抽的 cluster bootstrap（2000 次，固定種子）。
@@ -109,7 +109,7 @@
 - **套件版本固定**：`scikit-learn==1.9.1`、`pandas==3.0.6`、`numpy==2.5.4`（`requirements.txt` 已釘；matplotlib 3.11.2、openpyxl 3.1.5 是目前環境的版本，未釘）。理由：item_diff 的 inner 5-fold（`GroupKFold(shuffle=True, random_state=42)`）的分組會隨 sklearn 版本不同，結果才能重現。不要升級套件；非升不可的話，要重跑並重新核對既有結果。
 - RF 用 `n_jobs=-1` 時，預測有約 1e-16 的浮點誤差（多執行緒加總順序不固定），樹本身完全相同；測試用 1e-12／1e-9 的容差，不要求逐位元組相同。
 - 05 的寬表用 pandas 預設浮點解析讀長格式再寫出，數值可能與 02 的原始 csv 差 1 個浮點末位（約 1e-17）；測試以 1e-12 容差對回 02。`make_figures.py` 用 `float_precision="round_trip"` 讀檔。
-- 沒有 pytest：每個測試檔可直接 `python3 tests/featurize/test_features.py` 這樣的方式跑（目前 16 個檔案全過）。
+- 沒有 pytest：每個測試檔可直接 `python3 tests/featurize/test_features.py` 這樣的方式跑（目前 18 個檔案全過）。
 
 ### 資料品質備註（2026-11-19，描述性；沒有改任何處理參數，只用 trainval 的聚合統計）
 - `hint_count > 0`（5,958 列）與 `first_action ∈ {1, 2}`（3,553 列）的 `correct` 全為 0，沒有例外（與上面規則一致）。`attempt_count` 沒有這種保證：`attempt_count == 1` 答對率 0.83，≥ 2 不到 1%。
