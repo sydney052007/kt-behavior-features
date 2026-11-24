@@ -32,8 +32,11 @@ def test_pipeline_runs_and_outputs_are_aggregates_only():
     assert list(t) == rf.OUT_NAMES
     a, p, bc, th = (t[n] for n in rf.OUT_NAMES)
     assert len(a) == 12 and set(a["metric"]) == {"roc_auc", "pr_auc"}               # 6 組模型 × 2 指標
-    assert len(th) == 6 and len(p) == 2 * 2 * 3                                     # 模型類型 × 2 組比較 × (全部列、t=6、t=11)
-    assert set(p["comparison"]) == {"R1 - R0d", "R0d - R0"} and set(p["group"]) == {"all_rows", "t=6", "t=11"}
+    assert len(th) == 6 and len(p) == 4                                                 # 2 個模型類型 × 2 組比較，只有全部列
+    assert set(p["comparison"]) == {"R1 - R0d", "R0d - R0"} and set(p["group"]) == {"all_rows"}
+    assert set(p[p["comparison"] == "R1 - R0d"]["registered"]) == {"主要（事先登記）"}      # 主要與次要要標清楚
+    assert set(p[p["comparison"] == "R0d - R0"]["registered"]) == {"次要（描述性）"}
+    assert (p["n_rows"] == a["n_rows"].iloc[0]).all() and "eval" not in p.columns         # 沒有 C 的配對差值
     assert set(bc["eval"]) == {"B", "C"}
     for name, tab in t.items():
         assert not ({"user_id", "school_id", "order_id", "teacher_id", "student_class_id", "problem_id", "p_correct"}

@@ -5,7 +5,7 @@
     interpret_delta    判讀規則：區間含 0 → 「無法確認」，不下結論
 
 重抽程序與 evaluate.py 完全共用（cluster_resample_indices、固定種子），這裡不另寫一份。
-C（t = 6、11）直接用 evaluate.eval_c／paired_delta_c。
+C（t = 6、11）的單一模型 AUC 與區間用 evaluate.eval_c；C 的配對差值不算（見協定的補登記）。
 """
 import numpy as np
 

@@ -11,7 +11,8 @@
 訓練列的 item_diff 用 inner OOF，test 列用全 trainval。F1／Accuracy 的閾值用最終模型在訓練列上的預測選。
 輸出（只有彙總，不含 user_id、school_id，逐列預測不存檔）：
     test_final_a.csv          全部列 ROC-AUC／PR-AUC ＋ cluster bootstrap 區間，並列 5-fold 的 A 平均 ± 標準差
-    test_final_paired.csv     R1 − R0d、R0d − R0 的配對 ΔAUC 與區間（全部列、C 的 t = 6、11；LR、RF）與判讀
+    test_final_paired.csv     配對 ΔAUC（只有全部列）與區間、判讀，共 4 列：R1 − R0d（主要、事先登記）、
+                              R0d − R0（次要、描述性、不校正多重比較），LR 與 RF 各一個；不算 C 的配對差值
     test_final_b_c.csv        B 位置分桶、C（t = 6、11，附區間）
     test_final_threshold.csv  閾值、F1、Accuracy、混淆矩陣（描述性）
 """
@@ -27,7 +28,7 @@ from sklearn.metrics import accuracy_score, f1_score
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))  # src/
 import _setup_path  # noqa: F401,E402  # 把 src/ 底下所有子資料夾加進 import 路徑
 from eval_final import eval_all_rows, interpret_delta, paired_delta_all  # noqa: E402
-from evaluate import N_BOOT, eval_b, eval_c, paired_delta_c, select_threshold, to_wrong  # noqa: E402
+from evaluate import N_BOOT, eval_b, eval_c, select_threshold, to_wrong  # noqa: E402
 from features import R0_FEATURES, SEQ  # noqa: E402
 from features_r1 import (R0D_FEATURES, R1_FEATURES, fit_stats, item_diff_encode,  # noqa: E402
                          item_diff_train_oof, load_r1_frame, transform)
@@ -40,7 +41,8 @@ LOG_PATH = "results/03_process/test_final_run.log"      # 重導向 stdout 產�
 FEATURE_SETS = {"R0": R0_FEATURES, "R0d": R0D_FEATURES, "R1": R1_FEATURES}
 RF_CFG = {"R0": (8, 50), "R0d": (8, 5), "R1": (None, 50)}      # (max_depth, min_samples_leaf)，沿用 5-fold 的選擇
 MODEL_TYPES = ["LR", "RF"]
-PAIRS = [("R1", "R0d"), ("R0d", "R0")]                          # (新, 舊)：Δ = 新 − 舊
+# (新, 舊, 登記身分)：Δ = 新 − 舊；次要的不校正多重比較，報告須明說
+PAIRS = [("R1", "R0d", "主要（事先登記）"), ("R0d", "R0", "次要（描述性）")]
 CV_LR, CV_RF = "results/02_analysis/r1_lr_cv.csv", "results/02_analysis/rf_cv.csv"
 N_TRAINVAL_STUDENTS, N_TEST_STUDENTS = 1481, 262
 
@@ -147,10 +149,9 @@ def run_final(df, cv_ref=None, n_boot=N_BOOT):
                              FN=int(((pred == 0) & (y == 1)).sum()), TN=int(((pred == 0) & (y == 0)).sum()),
                              n_rows=len(oof)))
     for mt in MODEL_TYPES:
-        for new, old in PAIRS:
-            o_old, o_new = oofs[(mt, old)], oofs[(mt, new)]
-            res = pd.concat([paired_delta_all(o_old, o_new, n_boot=n_boot).assign(eval="ALL"),
-                             paired_delta_c(o_old, o_new, n_boot=n_boot).assign(eval="C")], ignore_index=True)
+        for new, old, status in PAIRS:
+            res = paired_delta_all(oofs[(mt, old)], oofs[(mt, new)], n_boot=n_boot)      # 只有全部列
+            res.insert(0, "registered", status)
             res.insert(0, "comparison", f"{new} - {old}")
             res.insert(0, "model_type", mt)
             res["interpretation"] = [interpret_delta(lo, hi) for lo, hi in zip(res["ci_low"], res["ci_high"])]
