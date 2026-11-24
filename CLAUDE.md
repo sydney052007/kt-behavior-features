@@ -117,7 +117,7 @@
 - **套件版本固定**：`scikit-learn==1.9.1`、`pandas==3.0.6`、`numpy==2.5.4`（`requirements.txt` 已釘；matplotlib 3.11.2、openpyxl 3.1.5 是目前環境的版本，未釘）。理由：item_diff 的 inner 5-fold（`GroupKFold(shuffle=True, random_state=42)`）的分組會隨 sklearn 版本不同，結果才能重現。不要升級套件；非升不可的話，要重跑並重新核對既有結果。
 - RF 用 `n_jobs=-1` 時，預測有約 1e-16 的浮點誤差（多執行緒加總順序不固定），樹本身完全相同；測試用 1e-12／1e-9 的容差，不要求逐位元組相同。
 - 05 的寬表用 pandas 預設浮點解析讀長格式再寫出，數值可能與 02 的原始 csv 差 1 個浮點末位（約 1e-17）；測試以 1e-12 容差對回 02。`make_figures.py` 用 `float_precision="round_trip"` 讀檔。
-- 沒有 pytest：每個測試檔可直接 `python3 tests/featurize/test_features.py` 這樣的方式跑（目前 18 個檔案全過）。
+- 沒有 pytest：每個測試檔可直接 `python3 tests/featurize/test_features.py` 這樣的方式跑（目前 20 個檔案全過）。
 
 ### 資料品質備註（2026-11-19，描述性；沒有改任何處理參數，只用 trainval 的聚合統計）
 - `hint_count > 0`（5,958 列）與 `first_action ∈ {1, 2}`（3,553 列）的 `correct` 全為 0，沒有例外（與上面規則一致）。`attempt_count` 沒有這種保證：`attempt_count == 1` 答對率 0.83，≥ 2 不到 1%。
@@ -153,6 +153,7 @@
 | `src/experiments/cross_school/make_xschool_groups.py` → `src/experiments/cross_school/run_xschool.py` → `src/experiments/cross_school/run_xschool_r0.py` | 分組檔與 `xschool_groups.csv`、`xschool_folds.csv` → `xschool_*.csv`、`xschool_unseen_problems.csv` → `xschool_r0_*.csv` |
 | `src/report/check_smoothing_m.py`、`src/report/report_features_r1.py` | `smoothing_m_estimate.txt`（item_diff 的 m 重新估計，只回報不改 m）；`r1_feature_stats.csv`（13 個特徵的描述統計）；皆只用 trainval，可獨立執行（不屬 `run_*`，不會覆寫實驗結果） |
 | `src/experiments/m_sensitivity/run_m_sensitivity.py` | `m_sensitivity_{cv,verdict}.csv`（item_diff 的 m 敏感度；先確認採用值與既有結果一致；`make_fold_features` 的選用參數 `m_map` 預設 = `ITEM_M`；約 2 分鐘；log 存 `results/03_process/m_sensitivity_run.log`） |
+| `src/experiments/final_test/run_final_test.py`（評估函式在 `src/common/eval_final.py`） | **test 最終評估，只能跑一次**（協定見「test 最終評估協定」）。預設（無旗標）只跑假資料自我檢查；真實執行：`python3 src/experiments/final_test/run_final_test.py --run-real-test > results/03_process/test_final_run.log 2>&1`（需 git 工作樹乾淨、輸出檔不存在）→ `results/02_analysis/test_final_{a,paired,b_c,threshold}.csv` |
 | `src/analysis/run_error_analysis.py`、`src/analysis/run_error_hint_excl_t1.py` | `error_*.csv`（約 8.5 分鐘，主要是 bootstrap）；`error_hint_excl_t1.csv` |
 | `src/report/make_report_tables.py`、`src/report/make_figures.py` | `results/05_report_tables/`；`figures/` |
 - 共用模組：`src/common/cv.py`、`src/common/evaluate.py`、`src/experiments/cross_school/xschool.py`。長時間的腳本用 `> results/03_process/<name>_run.log 2>&1` 存 log。
