@@ -1,0 +1,65 @@
+[m_sens] trainval 30,516 列（丟掉 test 5,532 列）
+[m_sens] 採用值與既有結果一致：4 組各 fold A ROC-AUC 最大差 0.0e+00 < 1e-09
+[m_sens] adopted  (m47=5, m311=20) LR R0d A ROC-AUC 0.7468   (累計 13s)
+[m_sens] adopted  (m47=5, m311=20) LR R1  A ROC-AUC 0.7516   (累計 13s)
+[m_sens] adopted  (m47=5, m311=20) RF R0d A ROC-AUC 0.7479   (累計 13s)
+[m_sens] adopted  (m47=5, m311=20) RF R1  A ROC-AUC 0.7576   (累計 13s)
+[m_sens] m47=4    (m47=4, m311=20) LR R0d A ROC-AUC 0.7469   (累計 28s)
+[m_sens] m47=4    (m47=4, m311=20) LR R1  A ROC-AUC 0.7517   (累計 28s)
+[m_sens] m47=4    (m47=4, m311=20) RF R0d A ROC-AUC 0.7477   (累計 28s)
+[m_sens] m47=4    (m47=4, m311=20) RF R1  A ROC-AUC 0.7576   (累計 28s)
+[m_sens] m47=6    (m47=6, m311=20) LR R0d A ROC-AUC 0.7468   (累計 43s)
+[m_sens] m47=6    (m47=6, m311=20) LR R1  A ROC-AUC 0.7515   (累計 43s)
+[m_sens] m47=6    (m47=6, m311=20) RF R0d A ROC-AUC 0.7480   (累計 43s)
+[m_sens] m47=6    (m47=6, m311=20) RF R1  A ROC-AUC 0.7573   (累計 43s)
+[m_sens] m311=16  (m47=5, m311=16) LR R0d A ROC-AUC 0.7469   (累計 59s)
+[m_sens] m311=16  (m47=5, m311=16) LR R1  A ROC-AUC 0.7516   (累計 59s)
+[m_sens] m311=16  (m47=5, m311=16) RF R0d A ROC-AUC 0.7478   (累計 59s)
+[m_sens] m311=16  (m47=5, m311=16) RF R1  A ROC-AUC 0.7576   (累計 59s)
+[m_sens] m311=24  (m47=5, m311=24) LR R0d A ROC-AUC 0.7467   (累計 75s)
+[m_sens] m311=24  (m47=5, m311=24) LR R1  A ROC-AUC 0.7515   (累計 75s)
+[m_sens] m311=24  (m47=5, m311=24) RF R0d A ROC-AUC 0.7478   (累計 75s)
+[m_sens] m311=24  (m47=5, m311=24) RF R1  A ROC-AUC 0.7572   (累計 75s)
+
+=== 各設定的 A ROC-AUC 平均、相對採用值的差 ===
+setting  m_47  m_311 model_type features    value  delta_vs_adopted  n_folds_better
+adopted     5     20         LR      R0d +0.74684          +0.00000             NaN
+adopted     5     20         LR       R1 +0.75160          +0.00000             NaN
+adopted     5     20         LR R1 - R0d +0.00476          +0.00000        +5.00000
+adopted     5     20         RF      R0d +0.74790          +0.00000             NaN
+adopted     5     20         RF       R1 +0.75756          +0.00000             NaN
+adopted     5     20         RF R1 - R0d +0.00966          +0.00000        +5.00000
+  m47=4     4     20         LR      R0d +0.74688          +0.00004             NaN
+  m47=4     4     20         LR       R1 +0.75166          +0.00005             NaN
+  m47=4     4     20         LR R1 - R0d +0.00477          +0.00001        +5.00000
+  m47=4     4     20         RF      R0d +0.74774          -0.00015             NaN
+  m47=4     4     20         RF       R1 +0.75755          -0.00001             NaN
+  m47=4     4     20         RF R1 - R0d +0.00981          +0.00015        +5.00000
+  m47=6     6     20         LR      R0d +0.74677          -0.00006             NaN
+  m47=6     6     20         LR       R1 +0.75155          -0.00006             NaN
+  m47=6     6     20         LR R1 - R0d +0.00477          +0.00001        +5.00000
+  m47=6     6     20         RF      R0d +0.74797          +0.00007             NaN
+  m47=6     6     20         RF       R1 +0.75727          -0.00028             NaN
+  m47=6     6     20         RF R1 - R0d +0.00931          -0.00035        +5.00000
+m311=16     5     16         LR      R0d +0.74687          +0.00003             NaN
+m311=16     5     16         LR       R1 +0.75161          +0.00001             NaN
+m311=16     5     16         LR R1 - R0d +0.00474          -0.00002        +5.00000
+m311=16     5     16         RF      R0d +0.74781          -0.00009             NaN
+m311=16     5     16         RF       R1 +0.75758          +0.00002             NaN
+m311=16     5     16         RF R1 - R0d +0.00977          +0.00011        +5.00000
+m311=24     5     24         LR      R0d +0.74669          -0.00015             NaN
+m311=24     5     24         LR       R1 +0.75150          -0.00010             NaN
+m311=24     5     24         LR R1 - R0d +0.00481          +0.00004        +5.00000
+m311=24     5     24         RF      R0d +0.74775          -0.00015             NaN
+m311=24     5     24         RF       R1 +0.75725          -0.00031             NaN
+m311=24     5     24         RF R1 - R0d +0.00950          -0.00016        +5.00000
+
+=== 判準 ===
+model_type features  max_abs_delta_auc  min_folds_better_r1_minus_r0d verdict
+        LR      R0d           0.000147                              5     不敏感
+        LR       R1           0.000102                              5     不敏感
+        RF      R0d           0.000155                              5     不敏感
+        RF       R1           0.000311                              5     不敏感
+       all      all                NaN                           <NA>     不敏感
+
+[m_sens] 完成（75s）；已寫出 results/02_analysis/m_sensitivity_cv.csv、results/02_analysis/m_sensitivity_verdict.csv

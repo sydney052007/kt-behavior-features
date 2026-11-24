@@ -97,15 +97,17 @@ def fit_stats(train: pd.DataFrame) -> dict:
 
 # ---------------------------------------------------------------- 題目難度
 
-def item_diff_encode(train: pd.DataFrame, rows: pd.DataFrame) -> pd.Series:
+def item_diff_encode(train: pd.DataFrame, rows: pd.DataFrame, m_map: dict = None) -> pd.Series:
     """用 train 的作答算出 rows 的題目難度：(答對數 + m·p̄) / (作答數 + m)。
-    p̄ = train 中該技能的整體答對率（列加權）；m 依技能固定；沒出現過的題目 = p̄。"""
+    p̄ = train 中該技能的整體答對率（列加權）；m 依技能固定；沒出現過的題目 = p̄。
+    m_map：選用，{技能: m}；預設（None）用 ITEM_M。只有 m 敏感度實驗會傳入別的值。"""
+    m_map = ITEM_M if m_map is None else m_map
     p_bar = train.groupby("skill_id")["correct"].mean()
     stat = train.groupby(["skill_id", "problem_id"])["correct"].agg(k="sum", n="size")
     idx = pd.MultiIndex.from_frame(rows[["skill_id", "problem_id"]])
     k = stat["k"].reindex(idx).fillna(0).to_numpy()
     n = stat["n"].reindex(idx).fillna(0).to_numpy()
-    m = rows["skill_id"].map(ITEM_M).to_numpy(float)
+    m = rows["skill_id"].map(m_map).to_numpy(float)
     p = rows["skill_id"].map(p_bar).to_numpy(float)
     return pd.Series((k + m * p) / (n + m), index=rows.index)
 
@@ -120,13 +122,14 @@ def inner_groups(train: pd.DataFrame) -> np.ndarray:
     return grp
 
 
-def item_diff_train_oof(train: pd.DataFrame) -> pd.Series:
-    """訓練列的題目難度：每列只用「其他 4 組」學生的作答，不含自己這一組（也不用 leave-one-out）。"""
+def item_diff_train_oof(train: pd.DataFrame, m_map: dict = None) -> pd.Series:
+    """訓練列的題目難度：每列只用「其他 4 組」學生的作答，不含自己這一組（也不用 leave-one-out）。
+    m_map：同 item_diff_encode（預設 ITEM_M）。"""
     grp = inner_groups(train)
     out = pd.Series(np.nan, index=train.index)
     for g in range(INNER_SPLITS):
         mask = grp == g
-        out[mask] = item_diff_encode(train[~mask], train[mask])
+        out[mask] = item_diff_encode(train[~mask], train[mask], m_map)
     assert out.notna().all()
     return out
 
@@ -173,16 +176,17 @@ def transform(df: pd.DataFrame, stats: dict, item_diff: pd.Series) -> pd.DataFra
     return out
 
 
-def make_fold_features(train: pd.DataFrame, val: pd.DataFrame):
+def make_fold_features(train: pd.DataFrame, val: pd.DataFrame, m_map: dict = None):
     """CV 的一個 fold：訓練列、驗證列各自的特徵。統計量全由 train 算。
 
     回傳 (train_feat, val_feat, stats)。test 學生這裡完全不碰：任何 role != trainval 的列都會報錯。
+    m_map：選用，題目難度的平滑參數 {技能: m}；預設 None = ITEM_M（既有行為不變）。
     """
     for name, d in [("train", train), ("val", val)]:
         assert (d["role"] == "trainval").all(), f"{name} 含 role != trainval 的列（test 不能碰）"
     assert set(train["user_id"]).isdisjoint(set(val["user_id"])), "訓練與驗證學生有交集"
 
     stats = fit_stats(train)
-    train_feat = transform(train, stats, item_diff_train_oof(train))
-    val_feat = transform(val, stats, item_diff_encode(train, val))
+    train_feat = transform(train, stats, item_diff_train_oof(train, m_map))
+    val_feat = transform(val, stats, item_diff_encode(train, val, m_map))
     return train_feat, val_feat, stats

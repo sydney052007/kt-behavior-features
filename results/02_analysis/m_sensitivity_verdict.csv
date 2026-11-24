@@ -1,0 +1,6 @@
+model_type,features,max_abs_delta_auc,min_folds_better_r1_minus_r0d,verdict
+LR,R0d,0.00014655278872310884,5,不敏感
+LR,R1,0.00010230527595400662,5,不敏感
+RF,R0d,0.0001548849517365447,5,不敏感
+RF,R1,0.00031051816643590247,5,不敏感
+all,all,,,不敏感

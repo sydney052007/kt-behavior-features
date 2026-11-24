@@ -144,6 +144,7 @@
 | `src/experiments/variant_r1r/run_r1r.py` → **再跑** `src/experiments/variant_r1r/finalize_r1r_results.py` | `r1r_*`；`run_r1r.py` 的原始輸出要由 `finalize_r1r_results.py` 切分成最後的檔案（重複執行會自己擋下） |
 | `src/experiments/cross_school/make_xschool_groups.py` → `src/experiments/cross_school/run_xschool.py` → `src/experiments/cross_school/run_xschool_r0.py` | 分組檔與 `xschool_groups.csv`、`xschool_folds.csv` → `xschool_*.csv`、`xschool_unseen_problems.csv` → `xschool_r0_*.csv` |
 | `src/report/check_smoothing_m.py`、`src/report/report_features_r1.py` | `smoothing_m_estimate.txt`（item_diff 的 m 重新估計，只回報不改 m）；`r1_feature_stats.csv`（13 個特徵的描述統計）；皆只用 trainval，可獨立執行（不屬 `run_*`，不會覆寫實驗結果） |
+| `src/experiments/m_sensitivity/run_m_sensitivity.py` | `m_sensitivity_{cv,verdict}.csv`（item_diff 的 m 敏感度；先確認採用值與既有結果一致；`make_fold_features` 的選用參數 `m_map` 預設 = `ITEM_M`；約 2 分鐘；log 存 `results/03_process/m_sensitivity_run.log`） |
 | `src/analysis/run_error_analysis.py`、`src/analysis/run_error_hint_excl_t1.py` | `error_*.csv`（約 8.5 分鐘，主要是 bootstrap）；`error_hint_excl_t1.csv` |
 | `src/report/make_report_tables.py`、`src/report/make_figures.py` | `results/05_report_tables/`；`figures/` |
 - 共用模組：`src/common/cv.py`、`src/common/evaluate.py`、`src/experiments/cross_school/xschool.py`。長時間的腳本用 `> results/03_process/<name>_run.log 2>&1` 存 log。

@@ -3,7 +3,7 @@
 整理日期見 git log。所有檔案只有彙總數字（沒有 user_id、school_id 欄位）。舊路徑 → 新路徑對照在 `MOVED.csv`。
 「有沒有被程式讀」只計 `src/`、`tests/` 內的讀取（`src/report/make_report_tables.py` 與 `tests/report/test_report_tables.py` 讀的是 02_analysis 內的多個檔案，各表的來源見 05 一節，這裡不逐一重複）；`~/scratch` 內的臨時腳本不算。
 
-共 77 個檔案：01_preprocessing 12 個、02_analysis 39 個、03_process 7 個、05_report_tables 19 個（04_exports 的三個 xlsx 已於整理第 2 階段刪除，見 MOVED.csv）。
+共 80 個檔案：01_preprocessing 12 個、02_analysis 41 個、03_process 8 個、05_report_tables 19 個（04_exports 的三個 xlsx 已於整理第 2 階段刪除，見 MOVED.csv）。
 待我確認：無（`rf_grid_auc.csv` 已依你的決定移到 02_analysis）。
 狀態欄：KEEP＝最終管線與報告輸出；ARCHIVE＝過程紀錄（不搬移，只標記）；事後變體＝R1r 相關（事後設計，報告須與 R1 並陳）。依據：`CLEANUP_INVENTORY.md` 與整理第 2 階段的決定。
 
@@ -40,6 +40,8 @@
 | `error_calibration_ece.csv` | KEEP | 錯誤分析：ECE（R0d、R1 × LR、RF） | src/analysis/run_error_analysis.py | 4 列 | 有：`src/report/make_report_tables.py`、`tests/analysis/test_error_analysis.py` | 規則見 CLAUDE.md「錯誤分析規則」；只有彙總（OOF 逐列預測沒有存檔） |
 | `error_high_conf_groups.csv` | KEEP | 錯誤分析：高信心錯誤兩群（預測答對 ≥ 0.8 但答錯；預測 ≤ 0.2 但答對）的列數與占比 | src/analysis/run_error_analysis.py | 8 列 | 有：`src/report/make_report_tables.py`、`tests/analysis/test_error_analysis.py` | 規則見 CLAUDE.md「錯誤分析規則」；只有彙總（OOF 逐列預測沒有存檔） |
 | `error_high_conf_features.csv` | KEEP | 錯誤分析：高信心錯誤兩群在 7 個特徵的平均 vs 全部列的平均 | src/analysis/run_error_analysis.py | 56 列 | 有：`src/report/make_report_tables.py`、`tests/analysis/test_error_analysis.py` | 規則見 CLAUDE.md「錯誤分析規則」；只有彙總（OOF 逐列預測沒有存檔） |
+| `m_sensitivity_cv.csv` | KEEP | item_diff 平滑參數 m 的敏感度：5 組設定（採用值、47 ∈ {4, 6}、311 ∈ {16, 24}，一次動一個技能）× LR／RF × R0d／R1／R1−R0d 的 A ROC-AUC（各 fold 與平均）、相對採用值的差、R1−R0d 較好 fold 數（長格式） | src/experiments/m_sensitivity/run_m_sensitivity.py | 180 列 | 有：`tests/experiments/m_sensitivity/test_m_sensitivity.py` | 事先登記規則見 CLAUDE.md「item_diff 平滑參數 m 的敏感度實驗規則」；只報告，不改採用的 m |
+| `m_sensitivity_verdict.csv` | KEEP | m 敏感度的判準結果：4 個（模型, 特徵集）各自的最大 \|ΔA ROC-AUC\|、R1−R0d 最少較好 fold 數、判讀，與整體判讀 | src/experiments/m_sensitivity/run_m_sensitivity.py | 5 列 | 有：同上 | 判準事先寫死（\|Δ\| < 0.002 且 R1−R0d 各設定 5/5） |
 | `r0_lr_cv.csv` | KEEP | R0 + LR（沒有 StandardScaler）的 A／B／C，W2 第一版結果 | src/experiments/lr/run_r0_lr.py | 24 列 | 有：`src/experiments/lr/run_r1_lr.py`、`tests/experiments/cross_school/test_xschool_r0.py` | **被 `r1_lr_cv.csv` 的 R0 列取代，報告以後者為準**（兩者在小數點三位相同；此檔只保留作為『加 StandardScaler 後數字不變』的對照） |
 | `r1_lr_coef.csv` | KEEP | R1 LR 的標準化係數（5 個 fold 平均與標準差） | src/experiments/lr/run_r1_lr.py | 13 列 | 無 |  |
 | `r1_lr_cv.csv` | KEEP | R0／R0d／R1 的 LR A／B／C（StandardScaler + LR，學生分組） | src/experiments/lr/run_r1_lr.py | 72 列 | 有：`src/experiments/variant_r1r/run_r1r.py`、`src/experiments/lr/run_ablation_lr.py`、`src/experiments/rf/run_rf.py`、`src/experiments/cross_school/run_xschool_r0.py`、`tests/experiments/cross_school/test_xschool.py`、`tests/experiments/cross_school/test_xschool_r0.py` | 被很多腳本當對照輸入 |
@@ -74,6 +76,7 @@
 |---|---|---|---|---|---|---|
 | `error_analysis_run.log` | ARCHIVE | run_error_analysis.py 的完整執行紀錄（含重現檢查與所有彙總表） | src/analysis/run_error_analysis.py | 167 行 | 無 | 由 shell 重導向存成（python3 … > 檔名）；腳本本身不寫這個檔 |
 | `error_hint_excl_t1_run.log` | ARCHIVE | run_error_hint_excl_t1.py 的完整執行紀錄（含 t=1 歸屬核對與並排結果） | src/analysis/run_error_hint_excl_t1.py | 14 行 | 無 | 由 shell 重導向存成（python3 … > 檔名）；腳本本身不寫這個檔 |
+| `m_sensitivity_run.log` | ARCHIVE | run_m_sensitivity.py 的完整執行紀錄（含採用值與既有結果的核對） | src/experiments/m_sensitivity/run_m_sensitivity.py | 65 行 | 無 | 由 shell 重導向存成（python3 … > 檔名） |
 | `r1r_rf_grid.csv` | ARCHIVE（事後變體） | R1r、R0d_rel 的 RF 9 組網格（含各 fold） | src/experiments/variant_r1r/run_r1r.py | 18 列 | 無 |  |
 | `r1r_run.log` | ARCHIVE（事後變體） | run_r1r.py 的完整執行紀錄 | src/experiments/variant_r1r/run_r1r.py | 105 行 | 無 | 由 shell 重導向存成（python3 … > 檔名）；腳本本身不寫這個檔 |
 | `rf_run.log` | ARCHIVE | run_rf.py 的完整執行紀錄（含 27 組網格的進度） | src/experiments/rf/run_rf.py | 124 行 | 無 | 由 shell 重導向存成（python3 … > 檔名）；腳本本身不寫這個檔 |
